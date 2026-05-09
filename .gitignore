@@ -1,0 +1,19 @@
+# Runtime data — messages and trash are user content, never commit them.
+messages/*
+!messages/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*~

@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sisyphus Panel</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" crossorigin="anonymous">
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-soft: #161b22;
+    --bg-card: rgba(255,255,255,0.025);
+    --fg: #e6edf3;
+    --fg-dim: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --border: #30363d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+                 "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.65;
+    font-size: 15px;
+    min-height: 100vh;
+  }
+  .wrap {
+    margin: 0 auto;
+    padding: 24px 32px 120px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+  header h1 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  header h1 .emoji { font-size: 18px; margin-right: 6px; }
+  .toolbar { display: flex; align-items: center; gap: 12px; }
+  .status {
+    font-size: 12px;
+    color: var(--fg-dim);
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  .status .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--fg-dim);
+    margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .status.connected .dot { background: var(--green); box-shadow: 0 0 8px rgba(63,185,80,0.5); }
+  .status.error .dot { background: var(--red); }
+  button.btn {
+    background: var(--bg-soft);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .messages { display: flex; flex-direction: column; gap: 20px; }
+
+  .msg {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 24px;
+    animation: fadein 0.3s ease;
+  }
+  @keyframes fadein {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  /* Sticky offset = page header height. If page header CSS changes, update this. */
+  .msg-header {
+    position: sticky;
+    top: 52px;
+    z-index: 5;
+    background: var(--bg-soft);
+    margin: -18px -24px 14px;
+    padding: 10px 16px 10px 12px;
+    border-bottom: 1px solid var(--border);
+    border-radius: 10px 10px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .msg-toggle {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--fg-dim);
+    cursor: pointer;
+    padding: 0 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    line-height: 22px;
+    font-family: inherit;
+    flex-shrink: 0;
+    transition: transform 0.18s ease, color 0.12s, border-color 0.12s;
+  }
+  .msg-toggle:hover { color: var(--accent); border-color: var(--border); }
+  .msg[data-collapsed="true"] .msg-toggle { transform: rotate(-90deg); }
+  .msg[data-collapsed="true"] .msg-content { display: none; }
+  .msg[data-collapsed="true"] .msg-header {
+    margin-bottom: -18px;
+    border-bottom: none;
+    border-radius: 10px;
+  }
+  .msg-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fg);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .msg-meta-info {
+    font-size: 11px;
+    color: var(--fg-dim);
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .msg-meta-info .file {
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.8;
+  }
+  .msg-close {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--fg-dim);
+    cursor: pointer;
+    padding: 0 8px;
+    border-radius: 4px;
+    font-size: 16px;
+    line-height: 22px;
+    font-family: inherit;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+  }
+  .msg-close:hover {
+    background: rgba(248, 81, 73, 0.12);
+    border-color: var(--red);
+    color: var(--red);
+  }
+  .msg-content > *:first-child { margin-top: 0; }
+  .msg-content > *:last-child { margin-bottom: 0; }
+
+  .msg-content h1, .msg-content h2, .msg-content h3,
+  .msg-content h4, .msg-content h5, .msg-content h6 {
+    margin: 1em 0 0.5em;
+    line-height: 1.3;
+  }
+  .msg-content h1 { font-size: 22px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .msg-content h2 { font-size: 18px; }
+  .msg-content h3 { font-size: 16px; }
+  .msg-content p { margin: 0.6em 0; }
+  .msg-content a { color: var(--accent); text-decoration: none; }
+  .msg-content a:hover { text-decoration: underline; }
+  .msg-content code:not([class*="language-"]) {
+    background: var(--bg-soft);
+    color: #ffa657;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.88em;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  .msg-content pre {
+    background: var(--bg-soft) !important;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px !important;
+    overflow-x: auto;
+    margin: 0.8em 0;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .msg-content pre code { background: transparent !important; padding: 0; color: var(--fg); }
+  .msg-content blockquote {
+    border-left: 3px solid var(--accent);
+    margin: 0.8em 0;
+    padding: 0.2em 14px;
+    color: var(--fg-dim);
+    background: rgba(88,166,255,0.05);
+    border-radius: 0 6px 6px 0;
+  }
+  .msg-content ul, .msg-content ol { padding-left: 26px; margin: 0.6em 0; }
+  .msg-content li { margin: 0.3em 0; }
+  .msg-content table {
+    border-collapse: collapse;
+    margin: 0.8em 0;
+    font-size: 14px;
+  }
+  .msg-content th, .msg-content td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: left;
+  }
+  .msg-content th { background: var(--bg-soft); }
+  .msg-content hr { border: none; border-top: 1px solid var(--border); margin: 1.5em 0; }
+  .msg-content img { max-width: 100%; border-radius: 6px; }
+
+  .katex { font-size: 1.05em; }
+  .katex-display {
+    margin: 1em 0 !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 0;
+  }
+  .katex-display > .katex { white-space: nowrap; }
+  .math-error {
+    background: rgba(248,81,73,0.1);
+    border: 1px solid var(--red);
+    color: var(--red);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    font-size: 0.85em;
+  }
+
+  .mermaid { text-align: center; margin: 1em 0; }
+  .mermaid svg { max-width: 100%; height: auto; }
+
+  .empty {
+    text-align: center;
+    padding: 120px 20px;
+    color: var(--fg-dim);
+    font-size: 13px;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    letter-spacing: 0.5px;
+  }
+
+  /* 滚动条 */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="emoji">🪨</span>Sisyphus Panel</h1>
+    <div class="toolbar">
+      <button class="btn" id="btn-clear" title="清空所有消息">Clear</button>
+      <span class="status" id="status"><span class="dot"></span><span class="text">connecting...</span></span>
+    </div>
+  </header>
+
+  <div class="messages" id="messages">
+    <div class="empty" id="empty">no messages</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js" crossorigin="anonymous"></script>
+
+<script>
+  if (window.Prism && Prism.plugins && Prism.plugins.autoloader) {
+    Prism.plugins.autoloader.languages_path =
+      'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';
+  }
+
+  mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  }
+
+  // marked.code() signature differs across versions: v9-v14 use positional
+  // (code, lang, escaped); v15+ pass a single token object {text, lang, ...}.
+  // Detect at runtime so this works on any pinned CDN version.
+  marked.use({
+    gfm: true,
+    breaks: false,
+    renderer: {
+      code(codeOrToken, infostring, _escaped) {
+        const isTokenObject = codeOrToken !== null && typeof codeOrToken === 'object';
+        const text = isTokenObject ? (codeOrToken.text ?? '') : (codeOrToken ?? '');
+        const langRaw = isTokenObject ? (codeOrToken.lang ?? '') : (infostring ?? '');
+        const lang = String(langRaw).trim().split(/\s+/)[0];
+
+        if (lang === 'mermaid') {
+          return `<div class="mermaid" data-source="${encodeURIComponent(text)}">${escapeHtml(text)}</div>`;
+        }
+        const escaped = escapeHtml(text);
+        if (lang) {
+          return `<pre class="language-${lang}"><code class="language-${lang}">${escaped}</code></pre>`;
+        }
+        return `<pre><code>${escaped}</code></pre>`;
+      }
+    }
+  });
+
+  // ---- 数学占位策略：先抠出 $$..$$ / $..$ / \[..\] / \(..\)，
+  //      用 HTML 注释占位（marked 不会破坏），渲染完再用 KaTeX 还原 ----
+  function renderMarkdown(src) {
+    const blocks = [];
+    const inlines = [];
+    let txt = src;
+
+    // \[ ... \]  —— display
+    txt = txt.replace(/\\\[([\s\S]+?)\\\]/g, (_m, eq) => {
+      blocks.push(eq);
+      return `<!--MB${blocks.length - 1}-->`;
+    });
+    // $$ ... $$  —— display
+    txt = txt.replace(/\$\$([\s\S]+?)\$\$/g, (_m, eq) => {
+      blocks.push(eq);
+      return `<!--MB${blocks.length - 1}-->`;
+    });
+    // \( ... \)  —— inline
+    txt = txt.replace(/\\\(([\s\S]+?)\\\)/g, (_m, eq) => {
+      inlines.push(eq);
+      return `<!--MI${inlines.length - 1}-->`;
+    });
+    // $ ... $   —— inline (单个 $，不能跨行，前面不能是 \)
+    txt = txt.replace(/(^|[^\\$])\$([^\n$]+?)\$(?!\$)/g, (m, pre, eq) => {
+      inlines.push(eq);
+      return `${pre}<!--MI${inlines.length - 1}-->`;
+    });
+
+    let html = marked.parse(txt);
+
+    blocks.forEach((eq, i) => {
+      let rendered;
+      try {
+        rendered = katex.renderToString(eq, { displayMode: true, throwOnError: false, output: 'html' });
+      } catch (e) {
+        rendered = `<div class="math-error">KaTeX block error: ${escapeHtml(e.message)}</div>`;
+      }
+      html = html.replace(`<!--MB${i}-->`, rendered);
+    });
+    inlines.forEach((eq, i) => {
+      let rendered;
+      try {
+        rendered = katex.renderToString(eq, { displayMode: false, throwOnError: false, output: 'html' });
+      } catch (e) {
+        rendered = `<span class="math-error">$${escapeHtml(eq)}$</span>`;
+      }
+      html = html.replace(`<!--MI${i}-->`, rendered);
+    });
+
+    return html;
+  }
+
+  // ---- 状态 ----
+  const seen = new Set();
+  const messagesEl = document.getElementById('messages');
+  const emptyEl = document.getElementById('empty');
+  const statusEl = document.getElementById('status');
+  const statusText = statusEl.querySelector('.text');
+  const btnClear = document.getElementById('btn-clear');
+
+  function setStatus(state, text) {
+    statusEl.classList.remove('connected', 'error');
+    if (state) statusEl.classList.add(state);
+    statusText.textContent = text;
+  }
+
+  function ensureNoEmpty() {
+    messagesEl.querySelectorAll('.empty').forEach(el => el.remove());
+  }
+
+  function renderArticle(msg) {
+    const existing = document.querySelector(`[data-id="${CSS.escape(msg.id)}"]`);
+    if (existing) {
+      // Skip re-render if unchanged. Critical: loadHistory now fires on every
+      // SSE (re)connect, so without this check every reconnect would replace
+      // every article in DOM (visible flicker + lost scroll position).
+      const oldMtime = parseFloat(existing.dataset.mtime || '0');
+      if (oldMtime === msg.mtime) {
+        seen.add(msg.id);
+        return;
+      }
+      const newEl = buildArticle(msg);
+      existing.replaceWith(newEl);
+      runEnhancements(newEl, msg);
+      seen.add(msg.id);
+      return;
+    }
+    seen.add(msg.id);
+    ensureNoEmpty();
+    const el = buildArticle(msg);
+    messagesEl.appendChild(el);
+    runEnhancements(el, msg);
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    });
+  }
+
+  function extractTitle(content, filename) {
+    const src = content || '';
+    const lines = src.split('\n');
+    let inFence = false;
+    for (const line of lines) {
+      if (/^```/.test(line)) { inFence = !inFence; continue; }
+      if (inFence) continue;
+      const h = line.match(/^\s*#+\s+(.+?)\s*#*\s*$/);
+      if (h) return h[1].trim();
+    }
+    inFence = false;
+    for (const line of lines) {
+      if (/^```/.test(line)) { inFence = !inFence; continue; }
+      if (inFence) continue;
+      const t = line.trim();
+      if (!t) continue;
+      if (t.startsWith('<!--') || t.startsWith('---')) continue;
+      return t.length > 80 ? t.slice(0, 80) + '…' : t;
+    }
+    return filename;
+  }
+
+  function buildArticle(msg) {
+    const article = document.createElement('article');
+    article.className = 'msg';
+    article.dataset.id = msg.id;
+    article.dataset.mtime = msg.mtime;
+    article.dataset.collapsed = 'false';
+
+    const dt = new Date(msg.mtime * 1000);
+    const time = dt.toLocaleString('zh-CN', { hour12: false });
+    const title = extractTitle(msg.content, msg.filename);
+
+    const header = document.createElement('div');
+    header.className = 'msg-header';
+    header.innerHTML = `
+      <button class="msg-toggle" type="button" title="折叠/展开" aria-label="折叠/展开">▼</button>
+      <span class="msg-title" title="${escapeHtml(title)}">${escapeHtml(title)}</span>
+      <span class="msg-meta-info">
+        <span class="file" title="${escapeHtml(msg.filename)}">${escapeHtml(msg.filename)}</span>
+        <span class="time">${time}</span>
+        <button class="msg-close" type="button" title="删除这条消息" aria-label="删除">×</button>
+      </span>
+    `;
+
+    header.querySelector('.msg-toggle').addEventListener('click', () => {
+      article.dataset.collapsed = article.dataset.collapsed === 'true' ? 'false' : 'true';
+    });
+
+    header.querySelector('.msg-close').addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      try {
+        const res = await fetch(`/messages/${encodeURIComponent(msg.filename)}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        article.remove();
+        seen.delete(msg.id);
+        if (messagesEl.children.length === 0 && emptyEl) {
+          messagesEl.appendChild(emptyEl.cloneNode(true));
+        }
+      } catch (e) {
+        alert('删除失败：' + e.message);
+      }
+    });
+
+    article.appendChild(header);
+
+    const content = document.createElement('div');
+    content.className = 'msg-content';
+    content.innerHTML = renderMarkdown(msg.content || '');
+    article.appendChild(content);
+
+    return article;
+  }
+
+  function runEnhancements(article, msg) {
+    // Mermaid 渲染
+    article.querySelectorAll('.mermaid').forEach((el, idx) => {
+      const source = decodeURIComponent(el.dataset.source || '');
+      const id = `mmd-${msg.id}-${idx}`.replace(/[^\w-]/g, '_');
+      mermaid.render(id, source).then(({ svg, bindFunctions }) => {
+        el.innerHTML = svg;
+        if (bindFunctions) bindFunctions(el);
+      }).catch(err => {
+        el.innerHTML = `<div class="math-error">Mermaid error: ${escapeHtml(err.message || String(err))}</div>
+                        <pre><code>${escapeHtml(source)}</code></pre>`;
+      });
+    });
+
+    // Prism 高亮
+    if (window.Prism) {
+      try { Prism.highlightAllUnder(article); } catch (e) { /* ignore */ }
+    }
+  }
+
+  function removeArticle(msg) {
+    const existing = document.querySelector(`[data-id="${CSS.escape(msg.id)}"]`);
+    if (existing) existing.remove();
+    seen.delete(msg.id);
+  }
+
+  // ---- 加载历史 ----
+  async function loadHistory() {
+    try {
+      const res = await fetch('/messages');
+      const list = await res.json();
+      list.sort((a, b) => a.mtime - b.mtime);
+      list.forEach(renderArticle);
+    } catch (e) {
+      console.error('load history failed', e);
+    }
+  }
+
+  // ---- SSE ----
+  function connectSSE() {
+    setStatus('', 'connecting...');
+    const es = new EventSource('/events');
+    es.onopen = () => {
+      setStatus('connected', 'connected');
+      // Re-sync history on every (re)connect: server-side watcher_loop seeds
+      // existing files into _known_file_mtimes without broadcasting them, so
+      // any files that landed while SSE was down would never reach us via
+      // events alone. loadHistory fills the gap; renderArticle's mtime check
+      // makes repeated calls cheap (no DOM thrash).
+      loadHistory();
+    };
+    es.addEventListener('message', ev => {
+      try { renderArticle(JSON.parse(ev.data)); }
+      catch (e) { console.error(e); }
+    });
+    es.addEventListener('delete', ev => {
+      try { removeArticle(JSON.parse(ev.data)); }
+      catch (e) { console.error(e); }
+    });
+    es.onerror = () => setStatus('error', 'reconnecting...');
+  }
+
+  // ---- 清空按钮 ----
+  btnClear.addEventListener('click', async () => {
+    if (!confirm('清空所有消息？')) return;
+    try {
+      await fetch('/clear', { method: 'POST' });
+      messagesEl.innerHTML = '';
+      seen.clear();
+      messagesEl.appendChild(emptyEl.cloneNode(true));
+    } catch (e) {
+      alert('清空失败：' + e.message);
+    }
+  });
+
+  connectSSE();
+</script>
+</body>
+</html>
