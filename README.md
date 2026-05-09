@@ -16,7 +16,7 @@ Use it when terminal-only output is awkward for the content you're producing (fo
 - **Live render** — markdown + LaTeX (KaTeX) + Mermaid + Prism code highlighting
 - **Just write a file** — no API, no SDK, no daemon protocol; any tool that can write a `.md` file works
 - **Restart-resilient** — messages persist across panel restarts; nothing gets wiped silently
-- **Soft delete** — deleted messages move to `messages/.trash/` and are auto-purged after 10 days
+- **Soft delete + history** — deleted messages go to `messages/.trash/`; the **History** button in the toolbar lists them newest-first and one-click restores them back into the panel. Auto-purged after 10 days.
 - **Collapsible cards** — click the triangle to fold long messages; sticky header keeps title + delete button reachable while scrolling
 - **Zero install** — Python 3.8+ stdlib only, no `pip install` needed; one HTML file, four CDN libs
 
@@ -74,17 +74,19 @@ curl -X POST http://localhost:7878/push --data-binary "## Title `$E=mc^2`$"
 
 ## HTTP API
 
-| Method | Path                       | Purpose                                        |
-| ------ | -------------------------- | ---------------------------------------------- |
-| GET    | `/`                        | Panel HTML                                     |
-| GET    | `/messages`                | All current messages as JSON array             |
-| GET    | `/events`                  | SSE stream — `message` and `delete` events     |
-| GET    | `/health`                  | `{"status":"ok","messages_dir":...}`           |
-| POST   | `/push`                    | Push a message (text body or JSON)             |
-| POST   | `/clear`                   | Move all messages to `.trash/`                 |
-| DELETE | `/messages/<filename>`     | Move one message to `.trash/`                  |
+| Method | Path                            | Purpose                                                            |
+| ------ | ------------------------------- | ------------------------------------------------------------------ |
+| GET    | `/`                             | Panel HTML                                                         |
+| GET    | `/messages`                     | All current messages as JSON array                                 |
+| GET    | `/trash`                        | All deleted messages as JSON array (each item includes `purge_at`) |
+| GET    | `/events`                       | SSE stream — `message` and `delete` events                         |
+| GET    | `/health`                       | `{"status":"ok","messages_dir":...}`                               |
+| POST   | `/push`                         | Push a message (text body or JSON)                                 |
+| POST   | `/clear`                        | Move all messages to `.trash/`                                     |
+| POST   | `/trash/restore/<filename>`     | Restore one message from `.trash/` back to `messages/`             |
+| DELETE | `/messages/<filename>`          | Move one message to `.trash/`                                      |
 
-## How delete works
+## How delete and restore work
 
 The browser × button (or `DELETE /messages/<filename>` or `POST /clear`) doesn't `unlink()` — it moves the file to `messages/.trash/` and resets its mtime to "now". The retention sweep (`gc_trash()`) runs:
 
@@ -93,7 +95,9 @@ The browser × button (or `DELETE /messages/<filename>` or `POST /clear`) doesn'
 
 Files older than **10 days** in `.trash/` are permanently removed. Adjust `TRASH_RETENTION_DAYS` in `panel.py` if you want a different window.
 
-To recover a soft-deleted file before the sweep purges it, just move it back out of `messages/.trash/` into `messages/`. The watcher will pick it up on the next poll.
+To restore a soft-deleted file inside the retention window, click **History** in the toolbar — the modal lists every file in `.trash/` newest-first, with title preview and a per-row "auto-purges in N days" countdown. One click on **Restore** moves it back into `messages/`, the watcher's next poll detects the file, and your browser sees it via SSE just like any new push. (Or `POST /trash/restore/<filename>` directly.)
+
+If a same-named file already exists in `messages/`, the restored copy is saved as `<stem>.restored-<ms>.md` so neither is overwritten. The internal `.deleted-<ms>` collision marker (added when two trashed files would have collided) is stripped on restore.
 
 ## Use with OpenCode / Claude Code (or any agent CLI)
 

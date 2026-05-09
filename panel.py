@@ -1,16 +1,17 @@
 """
-Sisyphus Panel - 旁路渲染面板
+Sisyphus Panel - side-channel markdown renderer for AI agents.
 
-监听 messages/ 文件夹中的 markdown 文件，通过 SSE (Server-Sent Events)
-实时推送给浏览器面板。浏览器端用 KaTeX 渲染 LaTeX、Prism 高亮代码、
-Mermaid 渲染图表。
+Watches markdown files under ./messages/ and pushes them to a browser panel
+in real time via SSE (Server-Sent Events). The browser renders LaTeX with
+KaTeX, syntax-highlights code with Prism, and renders diagrams with Mermaid.
 
-启动:    python panel.py
-访问:    http://localhost:7878
-推送消息: 写 .md 文件到 ./messages/  (或 POST /push  body=纯文本或 {"content","slug"})
-清空:    前端 Clear 按钮  (或 POST /clear)
+Run:      python panel.py
+Open:     http://localhost:7878
+Push:     drop a *.md file into ./messages/  (or POST /push, body = text or {"content","slug"})
+Clear:    Clear button in the UI  (or POST /clear -> moves files to .trash/)
+History:  History button in the UI (lists .trash/ and lets you restore deleted files)
 
-仅依赖 Python 3.8+ 标准库，无需 pip install。
+Pure Python 3.8+ stdlib, no pip install required.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from __future__ import annotations
 import http.server
 import json
 import os
+import re
 import socketserver
 import sys
 import threading
@@ -41,6 +43,14 @@ HOST = "127.0.0.1"
 POLL_INTERVAL_SEC = 0.8
 TRASH_RETENTION_DAYS = 10
 TRASH_GC_INTERVAL_SEC = 3600
+
+# Suffix appended by _safe_trash_target when two trashed files would collide;
+# stripped by _original_name_from_trash on restore so the user never sees it
+# in messages/.
+DELETED_SUFFIX_RE = re.compile(r"\.deleted-\d+$")
+# Suffix used by _safe_restore_target when restoring would collide with an
+# existing file in messages/; left visible so the user can see the conflict.
+RESTORED_SUFFIX_FMT = ".restored-{ms}"
 
 _clients_lock = threading.Lock()
 _clients: list[Queue] = []
@@ -70,6 +80,20 @@ def list_messages() -> list[dict]:
     return out
 
 
+def list_trash() -> list[dict]:
+    out = []
+    if not TRASH_DIR.exists():
+        return out
+    for f in sorted(TRASH_DIR.glob("*.md")):
+        msg = _read_message(f)
+        if msg:
+            # Surface the mtime-relative purge deadline so the UI can show
+            # "auto-purges in N days" without re-deriving the policy.
+            msg["purge_at"] = msg["mtime"] + TRASH_RETENTION_DAYS * 86400
+            out.append(msg)
+    return out
+
+
 def _safe_trash_target(filename: str) -> Path:
     target = TRASH_DIR / filename
     if not target.exists():
@@ -87,6 +111,40 @@ def _move_to_trash(src: Path) -> Path | None:
         return target
     except Exception as exc:
         print(f"[panel] trash move failed for {src.name}: {exc}", file=sys.stderr)
+        return None
+
+
+def _original_name_from_trash(name: str) -> str:
+    """Strip the internal `.deleted-<ms>` collision marker so a restored file
+    lands back in messages/ under its user-visible original name."""
+    stem = Path(name).stem
+    suffix = Path(name).suffix
+    cleaned = DELETED_SUFFIX_RE.sub("", stem)
+    return f"{cleaned}{suffix}"
+
+
+def _safe_restore_target(filename: str) -> Path:
+    target = MESSAGES_DIR / filename
+    if not target.exists():
+        return target
+    stem = Path(filename).stem
+    suffix = Path(filename).suffix
+    marker = RESTORED_SUFFIX_FMT.format(ms=int(time.time() * 1000))
+    return MESSAGES_DIR / f"{stem}{marker}{suffix}"
+
+
+def _restore_from_trash(src: Path) -> Path | None:
+    """Move src out of TRASH_DIR back into MESSAGES_DIR. Touches mtime so the
+    watcher's next poll detects it as a new file and broadcasts a `message`
+    event to all connected browsers."""
+    try:
+        original_name = _original_name_from_trash(src.name)
+        target = _safe_restore_target(original_name)
+        src.replace(target)
+        os.utime(target, None)
+        return target
+    except Exception as exc:
+        print(f"[panel] restore failed for {src.name}: {exc}", file=sys.stderr)
         return None
 
 
@@ -163,7 +221,7 @@ def watcher_loop() -> None:
 
 class Handler(http.server.BaseHTTPRequestHandler):
     server_version = "SisyphusPanel/1.0"
-    SILENT_PATHS = ("/events", "/messages", "/health")
+    SILENT_PATHS = ("/events", "/messages", "/trash", "/health")
 
     def log_message(self, fmt: str, *args) -> None:
         if any(p in self.path for p in self.SILENT_PATHS):
@@ -178,6 +236,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._serve_sse()
         if path == "/messages":
             return self._serve_messages()
+        if path == "/trash":
+            return self._serve_trash()
         if path == "/health":
             return self._serve_json({"status": "ok", "messages_dir": str(MESSAGES_DIR)})
         self.send_error(404, "not found")
@@ -188,6 +248,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._handle_push()
         if path == "/clear":
             return self._handle_clear()
+        if path.startswith("/trash/restore/"):
+            return self._handle_restore(unquote(path[len("/trash/restore/"):]))
         self.send_error(404, "not found")
 
     def do_DELETE(self) -> None:
@@ -220,6 +282,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _serve_messages(self) -> None:
         self._serve_json(list_messages())
+
+    def _serve_trash(self) -> None:
+        self._serve_json(list_trash())
 
     def _serve_sse(self) -> None:
         self.send_response(200)
@@ -292,6 +357,28 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_error(500, "trash move failed")
             return
         self._serve_json({"status": "ok", "deleted": filename, "trashed_as": moved.name})
+
+    def _handle_restore(self, filename: str) -> None:
+        # Same path-traversal guard as delete, but anchored at TRASH_DIR.
+        src = TRASH_DIR / filename
+        try:
+            if src.resolve().parent != TRASH_DIR.resolve():
+                self.send_error(400, "invalid filename")
+                return
+        except (OSError, ValueError):
+            self.send_error(400, "invalid filename")
+            return
+        if not src.exists():
+            self.send_error(404, "no such trash file")
+            return
+        moved = _restore_from_trash(src)
+        if moved is None:
+            self.send_error(500, "restore failed")
+            return
+        # Don't broadcast manually: the watcher's next poll cycle will detect
+        # the new file in MESSAGES_DIR and push a `message` event to every
+        # connected browser, which keeps the SSE story single-sourced.
+        self._serve_json({"status": "ok", "restored": filename, "as": moved.name})
 
     def _handle_clear(self) -> None:
         moved = 0

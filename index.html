@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -261,7 +261,155 @@
     letter-spacing: 0.5px;
   }
 
-  /* 滚动条 */
+  /* ---- History modal ---- */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 100;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 60px 20px;
+    overflow-y: auto;
+  }
+  .modal-backdrop[data-open="true"] { display: flex; }
+  .modal {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 760px;
+    max-height: calc(100vh - 120px);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-soft);
+    border-radius: 12px 12px 0 0;
+  }
+  .modal-head h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    flex: 1;
+  }
+  .modal-head .hint {
+    font-size: 11px;
+    color: var(--fg-dim);
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  .modal-close {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--fg-dim);
+    cursor: pointer;
+    padding: 0 10px;
+    border-radius: 4px;
+    font-size: 18px;
+    line-height: 22px;
+    font-family: inherit;
+  }
+  .modal-close:hover { background: rgba(248,81,73,0.12); border-color: var(--red); color: var(--red); }
+  .modal-body {
+    overflow-y: auto;
+    padding: 8px 18px 18px;
+    flex: 1;
+  }
+  .trash-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--fg-dim);
+    font-size: 13px;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  .trash-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .trash-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .trash-item-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .trash-item-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .trash-item-title:hover { color: var(--accent); }
+  .trash-item-meta {
+    font-size: 10.5px;
+    color: var(--fg-dim);
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+  .trash-item-meta .filename {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.7;
+  }
+  .trash-item-meta .purge { color: var(--yellow); opacity: 0.85; }
+  .trash-restore {
+    background: var(--bg-soft);
+    color: var(--green);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+    flex-shrink: 0;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .trash-restore:hover { border-color: var(--green); background: rgba(63,185,80,0.1); }
+  .trash-restore[disabled] { opacity: 0.5; cursor: progress; }
+  .trash-preview {
+    display: none;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+    margin-top: 4px;
+    font-size: 13px;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  .trash-item[data-expanded="true"] .trash-preview { display: block; }
+  .trash-preview pre {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    overflow-x: auto;
+    font-size: 12px;
+  }
+
+  /* Scrollbar */
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
@@ -273,13 +421,27 @@
   <header>
     <h1><span class="emoji">🪨</span>Sisyphus Panel</h1>
     <div class="toolbar">
-      <button class="btn" id="btn-clear" title="清空所有消息">Clear</button>
+      <button class="btn" id="btn-history" title="Show deleted messages">History</button>
+      <button class="btn" id="btn-clear" title="Move all messages to trash">Clear</button>
       <span class="status" id="status"><span class="dot"></span><span class="text">connecting...</span></span>
     </div>
   </header>
 
   <div class="messages" id="messages">
     <div class="empty" id="empty">no messages</div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-backdrop" data-open="false">
+  <div class="modal" id="modal" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+    <div class="modal-head">
+      <h2 id="modal-title">Deleted messages</h2>
+      <span class="hint">newest first &middot; auto-purged after 10 days</span>
+      <button class="modal-close" id="modal-close" type="button" title="Close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <div class="trash-empty">loading...</div>
+    </div>
   </div>
 </div>
 
@@ -327,29 +489,30 @@
     }
   });
 
-  // ---- 数学占位策略：先抠出 $$..$$ / $..$ / \[..\] / \(..\)，
-  //      用 HTML 注释占位（marked 不会破坏），渲染完再用 KaTeX 还原 ----
+  // Math placeholder strategy: extract $$..$$ / $..$ / \[..\] / \(..\) into
+  // HTML-comment placeholders before marked sees them (otherwise marked
+  // mangles things like $_x_$ as italic), then swap KaTeX renders back in.
   function renderMarkdown(src) {
     const blocks = [];
     const inlines = [];
     let txt = src;
 
-    // \[ ... \]  —— display
+    // \[ ... \]   -- display
     txt = txt.replace(/\\\[([\s\S]+?)\\\]/g, (_m, eq) => {
       blocks.push(eq);
       return `<!--MB${blocks.length - 1}-->`;
     });
-    // $$ ... $$  —— display
+    // $$ ... $$   -- display
     txt = txt.replace(/\$\$([\s\S]+?)\$\$/g, (_m, eq) => {
       blocks.push(eq);
       return `<!--MB${blocks.length - 1}-->`;
     });
-    // \( ... \)  —— inline
+    // \( ... \)   -- inline
     txt = txt.replace(/\\\(([\s\S]+?)\\\)/g, (_m, eq) => {
       inlines.push(eq);
       return `<!--MI${inlines.length - 1}-->`;
     });
-    // $ ... $   —— inline (单个 $，不能跨行，前面不能是 \)
+    // $ ... $    -- inline (single $, no newlines, must not be preceded by \)
     txt = txt.replace(/(^|[^\\$])\$([^\n$]+?)\$(?!\$)/g, (m, pre, eq) => {
       inlines.push(eq);
       return `${pre}<!--MI${inlines.length - 1}-->`;
@@ -379,13 +542,17 @@
     return html;
   }
 
-  // ---- 状态 ----
+  // ---- State ----
   const seen = new Set();
   const messagesEl = document.getElementById('messages');
   const emptyEl = document.getElementById('empty');
   const statusEl = document.getElementById('status');
   const statusText = statusEl.querySelector('.text');
   const btnClear = document.getElementById('btn-clear');
+  const btnHistory = document.getElementById('btn-history');
+  const modalBackdrop = document.getElementById('modal-backdrop');
+  const modalBody = document.getElementById('modal-body');
+  const modalClose = document.getElementById('modal-close');
 
   function setStatus(state, text) {
     statusEl.classList.remove('connected', 'error');
@@ -395,6 +562,20 @@
 
   function ensureNoEmpty() {
     messagesEl.querySelectorAll('.empty').forEach(el => el.remove());
+  }
+
+  function formatTime(unixSec) {
+    return new Date(unixSec * 1000).toLocaleString('en-US', { hour12: false });
+  }
+
+  function formatPurgeIn(purgeAtSec) {
+    const diffMs = purgeAtSec * 1000 - Date.now();
+    if (diffMs <= 0) return 'purging soon';
+    const days = Math.floor(diffMs / 86400000);
+    const hours = Math.floor((diffMs % 86400000) / 3600000);
+    if (days > 0) return `purges in ${days}d ${hours}h`;
+    const mins = Math.floor((diffMs % 3600000) / 60000);
+    return hours > 0 ? `purges in ${hours}h ${mins}m` : `purges in ${mins}m`;
   }
 
   function renderArticle(msg) {
@@ -441,7 +622,7 @@
       const t = line.trim();
       if (!t) continue;
       if (t.startsWith('<!--') || t.startsWith('---')) continue;
-      return t.length > 80 ? t.slice(0, 80) + '…' : t;
+      return t.length > 80 ? t.slice(0, 80) + '\u2026' : t;
     }
     return filename;
   }
@@ -453,19 +634,18 @@
     article.dataset.mtime = msg.mtime;
     article.dataset.collapsed = 'false';
 
-    const dt = new Date(msg.mtime * 1000);
-    const time = dt.toLocaleString('zh-CN', { hour12: false });
+    const time = formatTime(msg.mtime);
     const title = extractTitle(msg.content, msg.filename);
 
     const header = document.createElement('div');
     header.className = 'msg-header';
     header.innerHTML = `
-      <button class="msg-toggle" type="button" title="折叠/展开" aria-label="折叠/展开">▼</button>
+      <button class="msg-toggle" type="button" title="Collapse / expand" aria-label="Collapse / expand">&#9660;</button>
       <span class="msg-title" title="${escapeHtml(title)}">${escapeHtml(title)}</span>
       <span class="msg-meta-info">
         <span class="file" title="${escapeHtml(msg.filename)}">${escapeHtml(msg.filename)}</span>
         <span class="time">${time}</span>
-        <button class="msg-close" type="button" title="删除这条消息" aria-label="删除">×</button>
+        <button class="msg-close" type="button" title="Delete this message" aria-label="Delete">&times;</button>
       </span>
     `;
 
@@ -484,7 +664,7 @@
           messagesEl.appendChild(emptyEl.cloneNode(true));
         }
       } catch (e) {
-        alert('删除失败：' + e.message);
+        alert('Delete failed: ' + e.message);
       }
     });
 
@@ -499,7 +679,6 @@
   }
 
   function runEnhancements(article, msg) {
-    // Mermaid 渲染
     article.querySelectorAll('.mermaid').forEach((el, idx) => {
       const source = decodeURIComponent(el.dataset.source || '');
       const id = `mmd-${msg.id}-${idx}`.replace(/[^\w-]/g, '_');
@@ -512,7 +691,6 @@
       });
     });
 
-    // Prism 高亮
     if (window.Prism) {
       try { Prism.highlightAllUnder(article); } catch (e) { /* ignore */ }
     }
@@ -524,7 +702,7 @@
     seen.delete(msg.id);
   }
 
-  // ---- 加载历史 ----
+  // ---- Load history ----
   async function loadHistory() {
     try {
       const res = await fetch('/messages');
@@ -560,17 +738,111 @@
     es.onerror = () => setStatus('error', 'reconnecting...');
   }
 
-  // ---- 清空按钮 ----
+  // ---- Clear button ----
   btnClear.addEventListener('click', async () => {
-    if (!confirm('清空所有消息？')) return;
+    if (!confirm('Clear all messages?')) return;
     try {
       await fetch('/clear', { method: 'POST' });
       messagesEl.innerHTML = '';
       seen.clear();
       messagesEl.appendChild(emptyEl.cloneNode(true));
     } catch (e) {
-      alert('清空失败：' + e.message);
+      alert('Clear failed: ' + e.message);
     }
+  });
+
+  // ---- History modal ----
+  function openHistory() {
+    modalBackdrop.dataset.open = 'true';
+    modalBody.innerHTML = '<div class="trash-empty">loading...</div>';
+    fetch('/trash').then(r => r.json()).then(list => {
+      // Server returns ascending by filename; we want newest-first by mtime.
+      list.sort((a, b) => b.mtime - a.mtime);
+      renderTrashList(list);
+    }).catch(e => {
+      modalBody.innerHTML = `<div class="trash-empty">load failed: ${escapeHtml(e.message)}</div>`;
+    });
+  }
+
+  function closeHistory() {
+    modalBackdrop.dataset.open = 'false';
+  }
+
+  function renderTrashList(list) {
+    if (!list.length) {
+      modalBody.innerHTML = '<div class="trash-empty">no deleted messages</div>';
+      return;
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'trash-list';
+    list.forEach(msg => wrap.appendChild(buildTrashItem(msg)));
+    modalBody.innerHTML = '';
+    modalBody.appendChild(wrap);
+  }
+
+  function buildTrashItem(msg) {
+    const item = document.createElement('div');
+    item.className = 'trash-item';
+    item.dataset.filename = msg.filename;
+    item.dataset.expanded = 'false';
+
+    const title = extractTitle(msg.content, msg.filename);
+    const deletedAt = formatTime(msg.mtime);
+    const purge = msg.purge_at ? formatPurgeIn(msg.purge_at) : '';
+
+    const row = document.createElement('div');
+    row.className = 'trash-item-row';
+    row.innerHTML = `
+      <span class="trash-item-title" title="${escapeHtml(title)}">${escapeHtml(title)}</span>
+      <span class="trash-item-meta">
+        <span class="time">deleted ${escapeHtml(deletedAt)}</span>
+        <span class="filename" title="${escapeHtml(msg.filename)}">${escapeHtml(msg.filename)}</span>
+        ${purge ? `<span class="purge">${escapeHtml(purge)}</span>` : ''}
+      </span>
+      <button class="trash-restore" type="button">Restore</button>
+    `;
+
+    row.querySelector('.trash-item-title').addEventListener('click', () => {
+      item.dataset.expanded = item.dataset.expanded === 'true' ? 'false' : 'true';
+    });
+
+    const restoreBtn = row.querySelector('.trash-restore');
+    restoreBtn.addEventListener('click', async () => {
+      restoreBtn.disabled = true;
+      restoreBtn.textContent = 'Restoring...';
+      try {
+        const res = await fetch(`/trash/restore/${encodeURIComponent(msg.filename)}`, { method: 'POST' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        // Restored file lands in messages/; the watcher will broadcast it via
+        // SSE, so the main list updates on its own. We just remove this row.
+        item.remove();
+        if (!modalBody.querySelector('.trash-item')) {
+          modalBody.innerHTML = '<div class="trash-empty">no deleted messages</div>';
+        }
+      } catch (e) {
+        restoreBtn.disabled = false;
+        restoreBtn.textContent = 'Restore';
+        alert('Restore failed: ' + e.message);
+      }
+    });
+
+    item.appendChild(row);
+
+    const preview = document.createElement('div');
+    preview.className = 'trash-preview';
+    preview.innerHTML = renderMarkdown(msg.content || '');
+    item.appendChild(preview);
+
+    return item;
+  }
+
+  btnHistory.addEventListener('click', openHistory);
+  modalClose.addEventListener('click', closeHistory);
+  modalBackdrop.addEventListener('click', ev => {
+    if (ev.target === modalBackdrop) closeHistory();
+  });
+  document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && modalBackdrop.dataset.open === 'true') closeHistory();
   });
 
   connectSSE();
