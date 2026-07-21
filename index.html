@@ -18,6 +18,30 @@
     --red: #f85149;
     --yellow: #d29922;
     --border: #30363d;
+    /* Header row is tinted so it visibly stands out from the body */
+    --header-bg: #1b2740;
+    --header-border: #2f4266;
+    /* Code stays on a dark surface in both themes so Prism-tomorrow reads well */
+    --code-bg: #161b22;
+    --code-fg: #e6edf3;
+    --divider: #30363d;
+  }
+  html[data-theme="light"] {
+    --bg: #ffffff;
+    --bg-soft: #f2f5f9;
+    --bg-card: rgba(0,0,0,0.015);
+    --fg: #1f2328;
+    --fg-dim: #656d76;
+    --accent: #0969da;
+    --green: #1a7f37;
+    --red: #cf222e;
+    --yellow: #9a6700;
+    --border: #d5dbe2;
+    --header-bg: #e4eefc;
+    --header-border: #bcd4f6;
+    --code-bg: #1e242c;
+    --code-fg: #e6edf3;
+    --divider: #d5dbe2;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -29,6 +53,7 @@
     line-height: 1.65;
     font-size: 15px;
     min-height: 100vh;
+    transition: background 0.2s ease, color 0.2s ease;
   }
   .wrap {
     margin: 0 auto;
@@ -83,14 +108,25 @@
   }
   button.btn:hover { border-color: var(--accent); color: var(--accent); }
 
-  .messages { display: flex; flex-direction: column; gap: 20px; }
+  .messages { display: flex; flex-direction: column; gap: 34px; }
 
   .msg {
+    position: relative;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 10px;
     padding: 18px 24px;
     animation: fadein 0.3s ease;
+  }
+  /* Divider line centered in the gap between consecutive messages */
+  .msg + .msg::before {
+    content: "";
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    top: -17px;
+    height: 1px;
+    background: var(--divider);
   }
   @keyframes fadein {
     from { opacity: 0; transform: translateY(8px); }
@@ -101,10 +137,11 @@
     position: sticky;
     top: 52px;
     z-index: 5;
-    background: var(--bg-soft);
+    background: var(--header-bg);
     margin: -18px -24px 14px;
-    padding: 10px 16px 10px 12px;
-    border-bottom: 1px solid var(--border);
+    padding: 10px 16px 10px 14px;
+    border-bottom: 1px solid var(--header-border);
+    border-left: 3px solid var(--accent);
     border-radius: 10px 10px 0 0;
     display: flex;
     align-items: center;
@@ -133,8 +170,8 @@
   }
   .msg-title {
     font-size: 14px;
-    font-weight: 600;
-    color: var(--fg);
+    font-weight: 700;
+    color: var(--accent);
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -189,7 +226,7 @@
   .msg-content a { color: var(--accent); text-decoration: none; }
   .msg-content a:hover { text-decoration: underline; }
   .msg-content code:not([class*="language-"]) {
-    background: var(--bg-soft);
+    background: var(--code-bg);
     color: #ffa657;
     padding: 2px 6px;
     border-radius: 4px;
@@ -197,7 +234,7 @@
     font-family: ui-monospace, "SF Mono", Consolas, monospace;
   }
   .msg-content pre {
-    background: var(--bg-soft) !important;
+    background: var(--code-bg) !important;
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 14px 16px !important;
@@ -206,7 +243,7 @@
     font-size: 13px;
     line-height: 1.5;
   }
-  .msg-content pre code { background: transparent !important; padding: 0; color: var(--fg); }
+  .msg-content pre code { background: transparent !important; padding: 0; color: var(--code-fg); }
   .msg-content blockquote {
     border-left: 3px solid var(--accent);
     margin: 0.8em 0;
@@ -421,6 +458,7 @@
   <header>
     <h1><span class="emoji">🪨</span>Sisyphus Panel</h1>
     <div class="toolbar">
+      <button class="btn" id="btn-theme" title="Toggle light / dark mode">🌙 Dark</button>
       <button class="btn" id="btn-history" title="Show deleted messages">History</button>
       <button class="btn" id="btn-clear" title="Move all messages to trash">Clear</button>
       <span class="status" id="status"><span class="dot"></span><span class="text">connecting...</span></span>
@@ -457,7 +495,25 @@
       'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';
   }
 
-  mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+  // ---- Theme (light / dark) ----
+  const THEME_KEY = 'sisyphus-panel-theme';
+  function currentTheme() {
+    return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+  }
+  function initMermaidForTheme(theme) {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: theme === 'light' ? 'default' : 'dark',
+      securityLevel: 'loose',
+    });
+  }
+  // Apply stored preference immediately (before first paint of messages).
+  (function () {
+    let stored;
+    try { stored = localStorage.getItem(THEME_KEY); } catch (e) { /* ignore */ }
+    document.documentElement.dataset.theme = stored === 'light' ? 'light' : 'dark';
+  })();
+  initMermaidForTheme(currentTheme());
 
   function escapeHtml(s) {
     if (s == null) return '';
@@ -550,6 +606,38 @@
   const statusText = statusEl.querySelector('.text');
   const btnClear = document.getElementById('btn-clear');
   const btnHistory = document.getElementById('btn-history');
+  const btnTheme = document.getElementById('btn-theme');
+
+  function syncThemeButton() {
+    const light = currentTheme() === 'light';
+    btnTheme.textContent = light ? '☀️ Light' : '🌙 Dark';
+    btnTheme.title = light ? 'Switch to dark mode' : 'Switch to light mode';
+  }
+
+  function rerenderAllMermaid() {
+    document.querySelectorAll('.mermaid[data-source]').forEach((el, idx) => {
+      const source = decodeURIComponent(el.dataset.source || '');
+      if (!source) return;
+      const id = `mmd-theme-${Date.now()}-${idx}`;
+      mermaid.render(id, source).then(({ svg, bindFunctions }) => {
+        el.innerHTML = svg;
+        if (bindFunctions) bindFunctions(el);
+      }).catch(() => { /* keep previous render on failure */ });
+    });
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+    try { localStorage.setItem(THEME_KEY, currentTheme()); } catch (e) { /* ignore */ }
+    syncThemeButton();
+    initMermaidForTheme(currentTheme());
+    rerenderAllMermaid();
+  }
+
+  syncThemeButton();
+  btnTheme.addEventListener('click', () => {
+    applyTheme(currentTheme() === 'light' ? 'dark' : 'light');
+  });
   const modalBackdrop = document.getElementById('modal-backdrop');
   const modalBody = document.getElementById('modal-body');
   const modalClose = document.getElementById('modal-close');
