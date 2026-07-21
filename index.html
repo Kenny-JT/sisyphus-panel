@@ -245,6 +245,26 @@
   }
   .sb-item[data-unread="true"] .sb-item-dot { display: block; }
   .sb-item[data-unread="true"] .sb-item-title { font-weight: 600; color: var(--fg); }
+  /* quick-delete ×: replaces the time slot on row hover */
+  .sb-item-x {
+    display: none;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--fg-dim);
+    width: 20px;
+    height: 20px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .sb-item:hover .sb-item-time { display: none; }
+  .sb-item:hover .sb-item-x { display: inline-flex; }
+  .sb-item-x:hover { background: var(--red-soft); color: var(--red); }
 
   .sb-empty {
     padding: 18px 14px;
@@ -369,9 +389,10 @@
     overflow-x: hidden;
   }
   .page {
-    max-width: 780px;
-    margin: 0 auto;
-    padding: 40px 96px 30vh;
+    /* Kenny: no max-width cap — text fills the content area */
+    max-width: none;
+    margin: 0;
+    padding: 40px 64px 30vh;
   }
   @media (max-width: 900px) { .page { padding: 30px 40px 25vh; } }
   @media (max-width: 600px) { .page { padding: 24px 24px 25vh; } }
@@ -1007,8 +1028,19 @@
         <span class="sb-item-title">${escapeHtml(meta.title)}</span>
         <span class="sb-item-dot"></span>
         <span class="sb-item-time">${formatShort(msg.mtime)}</span>
+        <button class="sb-item-x" type="button" title="Move to Trash">✕</button>
       `;
       item.addEventListener('click', () => openPage(msg.id));
+      item.querySelector('.sb-item-x').addEventListener('click', async ev => {
+        ev.stopPropagation();
+        try {
+          const res = await fetch(`/messages/${encodeURIComponent(msg.filename)}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          removeMessage(msg);
+        } catch (e) {
+          alert('Delete failed: ' + e.message);
+        }
+      });
       sbPagesEl.appendChild(item);
     }
   }
