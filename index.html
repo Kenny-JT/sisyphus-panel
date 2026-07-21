@@ -4,478 +4,754 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sisyphus Panel</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>&#129704;</text></svg>">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" crossorigin="anonymous">
 <style>
+  /* ============================================================
+     Notion design tokens — light (default) & dark themes
+     ============================================================ */
   :root {
-    --bg: #0d1117;
-    --bg-soft: #161b22;
-    --bg-card: rgba(255,255,255,0.025);
-    --fg: #e6edf3;
-    --fg-dim: #8b949e;
-    --accent: #58a6ff;
-    --green: #3fb950;
-    --red: #f85149;
-    --yellow: #d29922;
-    --border: #30363d;
-    /* Header row is tinted so it visibly stands out from the body */
-    --header-bg: #1b2740;
-    --header-border: #2f4266;
-    /* Code stays on a dark surface in both themes so Prism-tomorrow reads well */
-    --code-bg: #161b22;
-    --code-fg: #e6edf3;
-    --divider: #30363d;
-  }
-  html[data-theme="light"] {
     --bg: #ffffff;
-    --bg-soft: #f2f5f9;
-    --bg-card: rgba(0,0,0,0.015);
-    --fg: #1f2328;
-    --fg-dim: #656d76;
-    --accent: #0969da;
-    --green: #1a7f37;
-    --red: #cf222e;
-    --yellow: #9a6700;
-    --border: #d5dbe2;
-    --header-bg: #e4eefc;
-    --header-border: #bcd4f6;
-    --code-bg: #1e242c;
-    --code-fg: #e6edf3;
-    --divider: #d5dbe2;
+    --bg-sidebar: #f7f7f5;
+    --bg-modal: #ffffff;
+    --fg: #37352f;
+    --fg-mid: rgba(55, 53, 47, 0.65);
+    --fg-dim: rgba(55, 53, 47, 0.5);
+    --fg-faint: rgba(55, 53, 47, 0.35);
+    --border: rgba(55, 53, 47, 0.09);
+    --border-strong: rgba(55, 53, 47, 0.16);
+    --hover: rgba(55, 53, 47, 0.06);
+    --active: rgba(55, 53, 47, 0.08);
+    --accent: #2383e2;
+    --accent-soft: rgba(35, 131, 226, 0.12);
+    --selection: rgba(35, 131, 226, 0.28);
+    --red: #eb5757;
+    --red-soft: rgba(235, 87, 87, 0.1);
+    --green: #0f7b6c;
+    --yellow: #dfab01;
+    --callout-bg: #f1f1ef;
+    --code-bg: #f7f6f3;
+    --code-border: rgba(55, 53, 47, 0.08);
+    --inline-code-bg: rgba(135, 131, 120, 0.15);
+    --inline-code-fg: #eb5757;
+    --shadow-modal: rgba(15, 15, 15, 0.05) 0 0 0 1px, rgba(15, 15, 15, 0.1) 0 5px 10px, rgba(15, 15, 15, 0.2) 0 15px 40px;
+    --shadow-menu: rgba(15, 15, 15, 0.05) 0 0 0 1px, rgba(15, 15, 15, 0.1) 0 3px 6px, rgba(15, 15, 15, 0.2) 0 9px 24px;
+    --scrollbar: rgba(55, 53, 47, 0.2);
+    --scrollbar-hover: rgba(55, 53, 47, 0.35);
+    /* Prism token palette (GitHub-light-ish, reads well on Notion gray) */
+    --tok-comment: #6e7781;
+    --tok-keyword: #cf222e;
+    --tok-string: #0a3069;
+    --tok-function: #8250df;
+    --tok-number: #0550ae;
+    --tok-class: #953800;
+    --tok-operator: #cf222e;
+    --tok-punct: #57606a;
+    --tok-variable: #24292f;
   }
+  html[data-theme="dark"] {
+    --bg: #191919;
+    --bg-sidebar: #202020;
+    --bg-modal: #252525;
+    --fg: rgba(255, 255, 255, 0.81);
+    --fg-mid: rgba(255, 255, 255, 0.46);
+    --fg-dim: rgba(255, 255, 255, 0.38);
+    --fg-faint: rgba(255, 255, 255, 0.28);
+    --border: rgba(255, 255, 255, 0.094);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --hover: rgba(255, 255, 255, 0.055);
+    --active: rgba(255, 255, 255, 0.08);
+    --accent: #2383e2;
+    --accent-soft: rgba(35, 131, 226, 0.2);
+    --selection: rgba(35, 131, 226, 0.35);
+    --red: #eb5757;
+    --red-soft: rgba(235, 87, 87, 0.15);
+    --green: #4dab9a;
+    --yellow: #ffdc49;
+    --callout-bg: #252525;
+    --code-bg: #202020;
+    --code-border: rgba(255, 255, 255, 0.094);
+    --inline-code-bg: rgba(135, 131, 120, 0.25);
+    --inline-code-fg: #ff8b8b;
+    --shadow-modal: rgba(0, 0, 0, 0.2) 0 0 0 1px, rgba(0, 0, 0, 0.3) 0 5px 10px, rgba(0, 0, 0, 0.5) 0 15px 40px;
+    --shadow-menu: rgba(0, 0, 0, 0.2) 0 0 0 1px, rgba(0, 0, 0, 0.3) 0 3px 6px, rgba(0, 0, 0, 0.5) 0 9px 24px;
+    --scrollbar: rgba(255, 255, 255, 0.2);
+    --scrollbar-hover: rgba(255, 255, 255, 0.35);
+    /* Prism token palette (GitHub-dark-ish) */
+    --tok-comment: #8b949e;
+    --tok-keyword: #ff7b72;
+    --tok-string: #a5d6ff;
+    --tok-function: #d2a8ff;
+    --tok-number: #79c0ff;
+    --tok-class: #ffa657;
+    --tok-operator: #ff7b72;
+    --tok-punct: #c9d1d9;
+    --tok-variable: #e6edf3;
+  }
+
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
   body {
     background: var(--bg);
     color: var(--fg);
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-                 "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
-    line-height: 1.65;
-    font-size: 15px;
-    min-height: 100vh;
-    transition: background 0.2s ease, color 0.2s ease;
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
+                 "PingFang SC", "Microsoft YaHei", "Apple Color Emoji", Arial, sans-serif,
+                 "Segoe UI Emoji", "Segoe UI Symbol";
+    line-height: 1.5;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.15s ease, color 0.15s ease;
   }
-  .wrap {
-    margin: 0 auto;
-    padding: 24px 32px 120px;
+  ::selection { background: var(--selection); }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); background-clip: content-box; }
+  button { font-family: inherit; }
+
+  /* ============================================================
+     App shell: sidebar | main
+     ============================================================ */
+  .app {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
   }
-  header {
+
+  /* ---------------- Sidebar ---------------- */
+  .sidebar {
+    width: 250px;
+    min-width: 250px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    transition: margin-left 0.2s ease;
+    overflow: hidden;
+  }
+  .app[data-sidebar="closed"] .sidebar { margin-left: -250px; }
+
+  .ws-head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 8px 0 16px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 24px;
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    z-index: 10;
+    gap: 8px;
+    padding: 12px 12px 10px 14px;
+    user-select: none;
   }
-  header h1 {
-    margin: 0;
-    font-size: 16px;
+  .ws-emoji { font-size: 17px; }
+  .ws-name {
+    flex: 1;
+    font-size: 14px;
     font-weight: 600;
-    letter-spacing: 0.3px;
+    color: var(--fg);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  header h1 .emoji { font-size: 18px; margin-right: 6px; }
-  .toolbar { display: flex; align-items: center; gap: 12px; }
-  .status {
-    font-size: 12px;
+  .icon-btn {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
     color: var(--fg-dim);
-    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    flex-shrink: 0;
+    padding: 0;
+    transition: background 0.1s ease, color 0.1s ease;
   }
-  .status .dot {
-    display: inline-block;
+  .icon-btn:hover { background: var(--hover); color: var(--fg-mid); }
+
+  .sb-search {
+    margin: 2px 10px 8px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: var(--hover);
+    border: 1px solid transparent;
+    transition: border-color 0.1s ease, background 0.1s ease;
+  }
+  .sb-search:focus-within { border-color: var(--accent); background: var(--bg); }
+  .sb-search .mag { font-size: 12px; color: var(--fg-dim); }
+  .sb-search input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--fg);
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .sb-search input::placeholder { color: var(--fg-faint); }
+
+  .sb-label {
+    padding: 6px 14px 2px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--fg-dim);
+    user-select: none;
+  }
+
+  .sb-pages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2px 6px 8px;
+  }
+  .sb-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 8px;
+    margin: 1px 0;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    color: var(--fg-mid);
+    transition: background 0.1s ease;
+    position: relative;
+  }
+  .sb-item:hover { background: var(--hover); }
+  .sb-item.active { background: var(--active); color: var(--fg); font-weight: 500; }
+  .sb-item-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+  .sb-item-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 13.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sb-item-time {
+    font-size: 10.5px;
+    color: var(--fg-faint);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .sb-item-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+    display: none;
+  }
+  .sb-item[data-unread="true"] .sb-item-dot { display: block; }
+  .sb-item[data-unread="true"] .sb-item-title { font-weight: 600; color: var(--fg); }
+
+  .sb-empty {
+    padding: 18px 14px;
+    font-size: 12.5px;
+    color: var(--fg-faint);
+    text-align: center;
+  }
+
+  .sb-foot {
+    border-top: 1px solid var(--border);
+    padding: 6px;
+  }
+  .sb-foot-btn {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 5px 9px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    color: var(--fg-mid);
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s ease;
+  }
+  .sb-foot-btn:hover { background: var(--hover); }
+  .sb-foot-btn .ic { width: 18px; text-align: center; font-size: 13px; }
+
+  /* ---------------- Main column ---------------- */
+  .main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+  }
+
+  .topbar {
+    height: 45px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    user-select: none;
+  }
+  .app[data-sidebar="open"] #btn-sb-open { display: none; }
+  .crumbs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+    font-size: 13.5px;
+    color: var(--fg);
+  }
+  .crumb-root { color: var(--fg-mid); flex-shrink: 0; }
+  .crumb-sep { color: var(--fg-faint); flex-shrink: 0; }
+  .crumb-page {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .crumb-page .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .status-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--fg-dim);
-    margin-right: 6px;
-    vertical-align: 1px;
+    background: var(--fg-faint);
+    margin: 0 6px;
+    transition: background 0.2s ease;
   }
-  .status.connected .dot { background: var(--green); box-shadow: 0 0 8px rgba(63,185,80,0.5); }
-  .status.error .dot { background: var(--red); }
-  button.btn {
-    background: var(--bg-soft);
-    color: var(--fg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 4px 10px;
-    font-size: 12px;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  button.btn:hover { border-color: var(--accent); color: var(--accent); }
+  .status-dot.connected { background: var(--green); }
+  .status-dot.error { background: var(--red); }
 
-  .messages { display: flex; flex-direction: column; gap: 34px; }
-
-  .msg {
-    position: relative;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 18px 24px;
-    animation: fadein 0.3s ease;
+  /* dropdown menu (•••) */
+  .menu {
+    position: fixed;
+    z-index: 200;
+    min-width: 200px;
+    background: var(--bg-modal);
+    border-radius: 8px;
+    box-shadow: var(--shadow-menu);
+    padding: 5px;
+    display: none;
   }
-  /* Divider line centered in the gap between consecutive messages */
-  .msg + .msg::before {
-    content: "";
-    position: absolute;
-    left: 8%;
-    right: 8%;
-    top: -17px;
-    height: 1px;
-    background: var(--divider);
-  }
-  @keyframes fadein {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  /* Sticky offset = page header height. If page header CSS changes, update this. */
-  .msg-header {
-    position: sticky;
-    top: 52px;
-    z-index: 5;
-    background: var(--header-bg);
-    margin: -18px -24px 14px;
-    padding: 10px 16px 10px 14px;
-    border-bottom: 1px solid var(--header-border);
-    border-left: 3px solid var(--accent);
-    border-radius: 10px 10px 0 0;
+  .menu[data-open="true"] { display: block; animation: pop 0.12s ease; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+  .menu-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-  }
-  .msg-toggle {
+    gap: 9px;
+    width: 100%;
+    padding: 6px 9px;
+    border: none;
     background: transparent;
-    border: 1px solid transparent;
-    color: var(--fg-dim);
+    border-radius: 5px;
+    color: var(--fg);
+    font-size: 13.5px;
     cursor: pointer;
-    padding: 0 6px;
-    border-radius: 4px;
-    font-size: 10px;
-    line-height: 22px;
-    font-family: inherit;
-    flex-shrink: 0;
-    transition: transform 0.18s ease, color 0.12s, border-color 0.12s;
-  }
-  .msg-toggle:hover { color: var(--accent); border-color: var(--border); }
-  .msg[data-collapsed="true"] .msg-toggle { transform: rotate(-90deg); }
-  .msg[data-collapsed="true"] .msg-content { display: none; }
-  .msg[data-collapsed="true"] .msg-header {
-    margin-bottom: -18px;
-    border-bottom: none;
-    border-radius: 10px;
-  }
-  .msg-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--accent);
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .msg-meta-info {
-    font-size: 11px;
-    color: var(--fg-dim);
-    font-family: ui-monospace, "SF Mono", Consolas, monospace;
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .msg-meta-info .file {
-    max-width: 240px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    opacity: 0.8;
-  }
-  .msg-close {
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--fg-dim);
-    cursor: pointer;
-    padding: 0 8px;
-    border-radius: 4px;
-    font-size: 16px;
-    line-height: 22px;
-    font-family: inherit;
-    transition: background 0.12s, border-color 0.12s, color 0.12s;
-  }
-  .msg-close:hover {
-    background: rgba(248, 81, 73, 0.12);
-    border-color: var(--red);
-    color: var(--red);
-  }
-  .msg-content > *:first-child { margin-top: 0; }
-  .msg-content > *:last-child { margin-bottom: 0; }
-
-  .msg-content h1, .msg-content h2, .msg-content h3,
-  .msg-content h4, .msg-content h5, .msg-content h6 {
-    margin: 1em 0 0.5em;
-    line-height: 1.3;
-  }
-  .msg-content h1 { font-size: 22px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
-  .msg-content h2 { font-size: 18px; }
-  .msg-content h3 { font-size: 16px; }
-  .msg-content p { margin: 0.6em 0; }
-  .msg-content a { color: var(--accent); text-decoration: none; }
-  .msg-content a:hover { text-decoration: underline; }
-  .msg-content code:not([class*="language-"]) {
-    background: var(--code-bg);
-    color: #ffa657;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.88em;
-    font-family: ui-monospace, "SF Mono", Consolas, monospace;
-  }
-  .msg-content pre {
-    background: var(--code-bg) !important;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 16px !important;
-    overflow-x: auto;
-    margin: 0.8em 0;
-    font-size: 13px;
-    line-height: 1.5;
-  }
-  .msg-content pre code { background: transparent !important; padding: 0; color: var(--code-fg); }
-  .msg-content blockquote {
-    border-left: 3px solid var(--accent);
-    margin: 0.8em 0;
-    padding: 0.2em 14px;
-    color: var(--fg-dim);
-    background: rgba(88,166,255,0.05);
-    border-radius: 0 6px 6px 0;
-  }
-  .msg-content ul, .msg-content ol { padding-left: 26px; margin: 0.6em 0; }
-  .msg-content li { margin: 0.3em 0; }
-  .msg-content table {
-    border-collapse: collapse;
-    margin: 0.8em 0;
-    font-size: 14px;
-  }
-  .msg-content th, .msg-content td {
-    border: 1px solid var(--border);
-    padding: 8px 12px;
     text-align: left;
   }
-  .msg-content th { background: var(--bg-soft); }
-  .msg-content hr { border: none; border-top: 1px solid var(--border); margin: 1.5em 0; }
-  .msg-content img { max-width: 100%; border-radius: 6px; }
+  .menu-item:hover { background: var(--hover); }
+  .menu-item.danger { color: var(--red); }
+  .menu-item.danger:hover { background: var(--red-soft); }
+  .menu-item .ic { width: 18px; text-align: center; }
 
+  /* ---------------- Page (document) area ---------------- */
+  .page-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .page {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 40px 96px 30vh;
+  }
+  @media (max-width: 900px) { .page { padding: 30px 40px 25vh; } }
+  @media (max-width: 600px) { .page { padding: 24px 24px 25vh; } }
+
+  .page-icon-big {
+    font-size: 68px;
+    line-height: 1.1;
+    margin-bottom: 4px;
+    user-select: none;
+  }
+  .page-title {
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+    word-break: break-word;
+  }
+  .page-meta {
+    font-size: 12px;
+    color: var(--fg-dim);
+    margin-bottom: 28px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .page-meta .fn { opacity: 0.85; }
+
+  .empty-state {
+    text-align: center;
+    padding: 18vh 20px 0;
+    color: var(--fg-dim);
+    user-select: none;
+  }
+  .empty-state .big { font-size: 52px; margin-bottom: 12px; }
+  .empty-state .h { font-size: 17px; font-weight: 600; color: var(--fg-mid); margin-bottom: 6px; }
+  .empty-state .s { font-size: 13.5px; color: var(--fg-faint); }
+  .empty-state code {
+    background: var(--inline-code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+
+  /* ============================================================
+     Notion typography inside the page body
+     ============================================================ */
+  .page-body { font-size: 16px; color: var(--fg); }
+  .page-body > * { position: relative; }
+
+  /* block hover handle (decorative ⋮⋮) */
+  .page-body > *:hover::before {
+    content: "⋮⋮";
+    position: absolute;
+    left: -26px;
+    top: 0.35em;
+    font-size: 11px;
+    letter-spacing: -1px;
+    color: var(--fg-faint);
+    cursor: grab;
+  }
+  @media (max-width: 900px) { .page-body > *:hover::before { content: none; } }
+
+  .page-body h1, .page-body h2, .page-body h3,
+  .page-body h4, .page-body h5, .page-body h6 {
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 1.4em 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .page-body h1 { font-size: 28px; margin-top: 1.6em; }
+  .page-body h2 { font-size: 22px; }
+  .page-body h3 { font-size: 18px; }
+  .page-body h4, .page-body h5, .page-body h6 { font-size: 16px; }
+  .page-body p { margin: 2px 0 1px; padding: 3px 0; }
+  .page-body a { color: inherit; text-decoration: underline; text-decoration-color: var(--fg-faint); text-underline-offset: 2px; transition: text-decoration-color 0.1s; }
+  .page-body a:hover { text-decoration-color: var(--fg-mid); }
+
+  .page-body ul, .page-body ol { margin: 2px 0; padding-left: 26px; }
+  .page-body li { padding: 2px 0; }
+  .page-body li::marker { color: var(--fg); }
+
+  .page-body blockquote {
+    margin: 6px 0;
+    padding: 14px 16px 14px 46px;
+    background: var(--callout-bg);
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    color: var(--fg);
+    position: relative;
+  }
+  .page-body blockquote::before {
+    content: "💡";
+    position: absolute;
+    left: 15px;
+    top: 13px;
+    font-size: 16px;
+  }
+  .page-body blockquote > *:first-child { margin-top: 0; padding-top: 0; }
+  .page-body blockquote > *:last-child { margin-bottom: 0; padding-bottom: 0; }
+
+  .page-body hr {
+    border: none;
+    border-top: 1px solid var(--border-strong);
+    margin: 12px 0;
+  }
+
+  .page-body table {
+    border-collapse: collapse;
+    margin: 8px 0;
+    font-size: 14.5px;
+    width: 100%;
+  }
+  .page-body th, .page-body td {
+    border: 1px solid var(--border-strong);
+    padding: 7px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .page-body th {
+    background: var(--hover);
+    font-weight: 600;
+    color: var(--fg-mid);
+    font-size: 13.5px;
+  }
+  .page-body img { max-width: 100%; border-radius: 4px; }
+
+  .page-body code:not([class*="language-"]) {
+    background: var(--inline-code-bg);
+    color: var(--inline-code-fg);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+
+  /* ---------------- Notion code block ---------------- */
+  .code-block {
+    margin: 8px 0;
+    border-radius: 8px;
+    background: var(--code-bg);
+    border: 1px solid var(--code-border);
+    overflow: hidden;
+  }
+  .code-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px 0 14px;
+    user-select: none;
+  }
+  .code-lang {
+    font-size: 11.5px;
+    color: var(--fg-dim);
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    text-transform: lowercase;
+  }
+  .code-copy {
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--fg-dim);
+    font-size: 11.5px;
+    padding: 3px 8px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s ease, background 0.1s ease;
+  }
+  .code-block:hover .code-copy { opacity: 1; }
+  .code-copy:hover { background: var(--hover); color: var(--fg-mid); }
+  .code-copy.done { color: var(--green); opacity: 1; }
+  .code-block pre {
+    margin: 0;
+    padding: 8px 16px 14px;
+    overflow-x: auto;
+    background: transparent;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+  .code-block pre code {
+    background: transparent;
+    padding: 0;
+    color: var(--fg);
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+    text-shadow: none;
+  }
+
+  /* Prism token colors via CSS variables (both themes) */
+  .token.comment, .token.prolog, .token.doctype, .token.cdata { color: var(--tok-comment); font-style: italic; }
+  .token.punctuation { color: var(--tok-punct); }
+  .token.keyword, .token.atrule, .token.important { color: var(--tok-keyword); }
+  .token.string, .token.char, .token.attr-value, .token.regex { color: var(--tok-string); }
+  .token.function, .token.selector { color: var(--tok-function); }
+  .token.number, .token.boolean, .token.constant, .token.symbol { color: var(--tok-number); }
+  .token.class-name, .token.builtin, .token.attr-name, .token.tag { color: var(--tok-class); }
+  .token.operator, .token.entity, .token.url { color: var(--tok-operator); background: transparent; }
+  .token.variable, .token.property { color: var(--tok-variable); }
+  .token.inserted { color: var(--green); }
+  .token.deleted { color: var(--red); }
+  .token.bold { font-weight: 600; }
+  .token.italic { font-style: italic; }
+
+  /* ---------------- KaTeX & Mermaid ---------------- */
   .katex { font-size: 1.05em; }
   .katex-display {
-    margin: 1em 0 !important;
+    margin: 0.9em 0 !important;
     overflow-x: auto;
     overflow-y: hidden;
     padding: 4px 0;
   }
   .katex-display > .katex { white-space: nowrap; }
   .math-error {
-    background: rgba(248,81,73,0.1);
+    background: var(--red-soft);
     border: 1px solid var(--red);
     color: var(--red);
-    padding: 4px 8px;
+    padding: 3px 8px;
     border-radius: 4px;
     font-family: ui-monospace, monospace;
     font-size: 0.85em;
   }
-
-  .mermaid { text-align: center; margin: 1em 0; }
+  .mermaid { text-align: center; margin: 10px 0; }
   .mermaid svg { max-width: 100%; height: auto; }
 
-  .empty {
-    text-align: center;
-    padding: 120px 20px;
-    color: var(--fg-dim);
-    font-size: 13px;
-    font-family: ui-monospace, "SF Mono", Consolas, monospace;
-    letter-spacing: 0.5px;
-  }
-
-  /* ---- History modal ---- */
+  /* ============================================================
+     Trash modal (Notion-style)
+     ============================================================ */
   .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(15, 15, 15, 0.6);
     z-index: 100;
     display: none;
     align-items: flex-start;
     justify-content: center;
-    padding: 60px 20px;
+    padding: 90px 20px 40px;
     overflow-y: auto;
   }
   .modal-backdrop[data-open="true"] { display: flex; }
   .modal {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    background: var(--bg-modal);
+    border-radius: 10px;
     width: 100%;
-    max-width: 760px;
-    max-height: calc(100vh - 120px);
+    max-width: 640px;
+    max-height: calc(100vh - 160px);
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    box-shadow: var(--shadow-modal);
+    animation: pop 0.15s ease;
   }
   .modal-head {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 18px;
+    gap: 10px;
+    padding: 14px 16px 10px;
     border-bottom: 1px solid var(--border);
-    background: var(--bg-soft);
-    border-radius: 12px 12px 0 0;
   }
-  .modal-head h2 {
-    margin: 0;
-    font-size: 14px;
-    font-weight: 600;
-    flex: 1;
-  }
-  .modal-head .hint {
-    font-size: 11px;
-    color: var(--fg-dim);
-    font-family: ui-monospace, "SF Mono", Consolas, monospace;
-  }
-  .modal-close {
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--fg-dim);
-    cursor: pointer;
-    padding: 0 10px;
-    border-radius: 4px;
-    font-size: 18px;
-    line-height: 22px;
-    font-family: inherit;
-  }
-  .modal-close:hover { background: rgba(248,81,73,0.12); border-color: var(--red); color: var(--red); }
-  .modal-body {
-    overflow-y: auto;
-    padding: 8px 18px 18px;
-    flex: 1;
-  }
-  .trash-empty {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--fg-dim);
-    font-size: 13px;
-    font-family: ui-monospace, "SF Mono", Consolas, monospace;
-  }
-  .trash-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .modal-head h2 { margin: 0; font-size: 14.5px; font-weight: 600; flex: 1; }
+  .modal-head .hint { font-size: 11.5px; color: var(--fg-dim); }
+  .modal-body { overflow-y: auto; padding: 8px; flex: 1; }
+  .trash-empty { text-align: center; padding: 40px 20px; color: var(--fg-faint); font-size: 13px; }
   .trash-item {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 12px;
+    border-radius: 6px;
+    padding: 7px 10px;
     display: flex;
     flex-direction: column;
     gap: 6px;
   }
-  .trash-item-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .trash-item-title {
+  .trash-item:hover { background: var(--hover); }
+  .trash-row { display: flex; align-items: center; gap: 10px; }
+  .trash-title {
     flex: 1;
     min-width: 0;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 13.5px;
+    font-weight: 500;
     color: var(--fg);
     cursor: pointer;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
   }
-  .trash-item-title:hover { color: var(--accent); }
-  .trash-item-meta {
+  .trash-title:hover { color: var(--accent); }
+  .trash-meta {
     font-size: 10.5px;
     color: var(--fg-dim);
-    font-family: ui-monospace, "SF Mono", Consolas, monospace;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 2px;
+    gap: 1px;
     flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
   }
-  .trash-item-meta .filename {
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    opacity: 0.7;
-  }
-  .trash-item-meta .purge { color: var(--yellow); opacity: 0.85; }
+  .trash-meta .purge { color: var(--yellow); }
   .trash-restore {
-    background: var(--bg-soft);
-    color: var(--green);
-    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--border-strong);
     border-radius: 5px;
-    padding: 4px 10px;
-    font-size: 11px;
+    padding: 3px 10px;
+    font-size: 12px;
     cursor: pointer;
-    font-family: inherit;
     flex-shrink: 0;
-    transition: background 0.12s, border-color 0.12s;
+    transition: background 0.1s ease, border-color 0.1s ease;
   }
-  .trash-restore:hover { border-color: var(--green); background: rgba(63,185,80,0.1); }
+  .trash-restore:hover { border-color: var(--accent); background: var(--accent-soft); }
   .trash-restore[disabled] { opacity: 0.5; cursor: progress; }
   .trash-preview {
     display: none;
     border-top: 1px solid var(--border);
-    padding-top: 8px;
-    margin-top: 4px;
+    padding: 8px 4px 4px;
     font-size: 13px;
-    max-height: 280px;
+    max-height: 260px;
     overflow-y: auto;
   }
   .trash-item[data-expanded="true"] .trash-preview { display: block; }
-  .trash-preview pre {
-    background: var(--bg-soft);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 8px 10px;
-    overflow-x: auto;
-    font-size: 12px;
-  }
-
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
-  ::-webkit-scrollbar-thumb:hover { background: #484f58; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1><span class="emoji">🪨</span>Sisyphus Panel</h1>
-    <div class="toolbar">
-      <button class="btn" id="btn-theme" title="Toggle light / dark mode">🌙 Dark</button>
-      <button class="btn" id="btn-history" title="Show deleted messages">History</button>
-      <button class="btn" id="btn-clear" title="Move all messages to trash">Clear</button>
-      <span class="status" id="status"><span class="dot"></span><span class="text">connecting...</span></span>
-    </div>
-  </header>
+<div class="app" id="app" data-sidebar="open">
 
-  <div class="messages" id="messages">
-    <div class="empty" id="empty">no messages</div>
+  <aside class="sidebar">
+    <div class="ws-head">
+      <span class="ws-emoji">🪨</span>
+      <span class="ws-name">Sisyphus Panel</span>
+      <button class="icon-btn" id="btn-sb-close" title="Close sidebar">«</button>
+    </div>
+    <div class="sb-search">
+      <span class="mag">🔍</span>
+      <input id="search" type="text" placeholder="Search pages..." autocomplete="off" spellcheck="false">
+    </div>
+    <div class="sb-label">Pages</div>
+    <nav class="sb-pages" id="sb-pages">
+      <div class="sb-empty">No pages yet</div>
+    </nav>
+    <div class="sb-foot">
+      <button class="sb-foot-btn" id="btn-trash"><span class="ic">🗑</span>Trash</button>
+      <button class="sb-foot-btn" id="btn-clear"><span class="ic">🧹</span>Clear all pages</button>
+      <button class="sb-foot-btn" id="btn-theme"><span class="ic" id="theme-ic">🌙</span><span id="theme-label">Dark mode</span></button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="icon-btn" id="btn-sb-open" title="Open sidebar">»</button>
+      <div class="crumbs">
+        <span class="crumb-root">Sisyphus Panel</span>
+        <span class="crumb-sep" id="crumb-sep" style="display:none">/</span>
+        <span class="crumb-page" id="crumb-page"></span>
+      </div>
+      <div class="topbar-right">
+        <span class="status-dot" id="status-dot" title="connecting..."></span>
+        <button class="icon-btn" id="btn-menu" title="More actions">•••</button>
+      </div>
+    </div>
+    <div class="page-scroll" id="page-scroll">
+      <article class="page" id="page">
+        <div class="empty-state">
+          <div class="big">🪨</div>
+          <div class="h">No pages yet</div>
+          <div class="s">Drop a <code>.md</code> file into <code>messages/</code> and it will appear here.</div>
+        </div>
+      </article>
+    </div>
   </div>
+
+</div>
+
+<div class="menu" id="menu" data-open="false">
+  <button class="menu-item danger" id="menu-delete"><span class="ic">🗑</span>Move to Trash</button>
 </div>
 
 <div class="modal-backdrop" id="modal-backdrop" data-open="false">
-  <div class="modal" id="modal" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-head">
-      <h2 id="modal-title">Deleted messages</h2>
-      <span class="hint">newest first &middot; auto-purged after 10 days</span>
-      <button class="modal-close" id="modal-close" type="button" title="Close" aria-label="Close">&times;</button>
+      <h2 id="modal-title">🗑 Trash</h2>
+      <span class="hint">newest first · auto-purged after 10 days</span>
+      <button class="icon-btn" id="modal-close" title="Close">✕</button>
     </div>
     <div class="modal-body" id="modal-body">
       <div class="trash-empty">loading...</div>
@@ -495,34 +771,33 @@
       'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';
   }
 
-  // ---- Theme (light / dark) ----
+  // ---- Theme ----
   const THEME_KEY = 'sisyphus-panel-theme';
   function currentTheme() {
-    return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+    return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   }
   function initMermaidForTheme(theme) {
     mermaid.initialize({
       startOnLoad: false,
-      theme: theme === 'light' ? 'default' : 'dark',
+      theme: theme === 'dark' ? 'dark' : 'default',
       securityLevel: 'loose',
     });
   }
-  // Apply stored preference immediately (before first paint of messages).
   (function () {
     let stored;
     try { stored = localStorage.getItem(THEME_KEY); } catch (e) { /* ignore */ }
-    document.documentElement.dataset.theme = stored === 'light' ? 'light' : 'dark';
+    // Notion defaults to light; keep dark if the user chose it before.
+    document.documentElement.dataset.theme = stored === 'dark' ? 'dark' : 'light';
   })();
   initMermaidForTheme(currentTheme());
 
   function escapeHtml(s) {
     if (s == null) return '';
-    return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   }
 
   // marked.code() signature differs across versions: v9-v14 use positional
   // (code, lang, escaped); v15+ pass a single token object {text, lang, ...}.
-  // Detect at runtime so this works on any pinned CDN version.
   marked.use({
     gfm: true,
     breaks: false,
@@ -537,38 +812,37 @@
           return `<div class="mermaid" data-source="${encodeURIComponent(text)}">${escapeHtml(text)}</div>`;
         }
         const escaped = escapeHtml(text);
-        if (lang) {
-          return `<pre class="language-${lang}"><code class="language-${lang}">${escaped}</code></pre>`;
-        }
-        return `<pre><code>${escaped}</code></pre>`;
+        const langClass = lang ? ` class="language-${lang}"` : '';
+        return `<figure class="code-block">
+          <div class="code-head">
+            <span class="code-lang">${escapeHtml(lang || 'plain text')}</span>
+            <button class="code-copy" type="button" data-code="${encodeURIComponent(text)}">Copy</button>
+          </div>
+          <pre${langClass}><code${langClass}>${escaped}</code></pre>
+        </figure>`;
       }
     }
   });
 
   // Math placeholder strategy: extract $$..$$ / $..$ / \[..\] / \(..\) into
-  // HTML-comment placeholders before marked sees them (otherwise marked
-  // mangles things like $_x_$ as italic), then swap KaTeX renders back in.
+  // HTML-comment placeholders before marked sees them, then swap KaTeX back in.
   function renderMarkdown(src) {
     const blocks = [];
     const inlines = [];
     let txt = src;
 
-    // \[ ... \]   -- display
     txt = txt.replace(/\\\[([\s\S]+?)\\\]/g, (_m, eq) => {
       blocks.push(eq);
       return `<!--MB${blocks.length - 1}-->`;
     });
-    // $$ ... $$   -- display
     txt = txt.replace(/\$\$([\s\S]+?)\$\$/g, (_m, eq) => {
       blocks.push(eq);
       return `<!--MB${blocks.length - 1}-->`;
     });
-    // \( ... \)   -- inline
     txt = txt.replace(/\\\(([\s\S]+?)\\\)/g, (_m, eq) => {
       inlines.push(eq);
       return `<!--MI${inlines.length - 1}-->`;
     });
-    // $ ... $    -- inline (single $, no newlines, must not be preceded by \)
     txt = txt.replace(/(^|[^\\$])\$([^\n$]+?)\$(?!\$)/g, (m, pre, eq) => {
       inlines.push(eq);
       return `${pre}<!--MI${inlines.length - 1}-->`;
@@ -598,64 +872,71 @@
     return html;
   }
 
-  // ---- State ----
-  const seen = new Set();
-  const messagesEl = document.getElementById('messages');
-  const emptyEl = document.getElementById('empty');
-  const statusEl = document.getElementById('status');
-  const statusText = statusEl.querySelector('.text');
-  const btnClear = document.getElementById('btn-clear');
-  const btnHistory = document.getElementById('btn-history');
-  const btnTheme = document.getElementById('btn-theme');
-
-  function syncThemeButton() {
-    const light = currentTheme() === 'light';
-    btnTheme.textContent = light ? '☀️ Light' : '🌙 Dark';
-    btnTheme.title = light ? 'Switch to dark mode' : 'Switch to light mode';
+  // ---- Title / icon extraction ----
+  function extractTitleInfo(content, filename) {
+    const src = content || '';
+    const lines = src.split('\n');
+    let inFence = false;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^```/.test(line)) { inFence = !inFence; continue; }
+      if (inFence) continue;
+      const h = line.match(/^\s*#+\s+(.+?)\s*#*\s*$/);
+      if (h) return { title: h[1].trim(), headingLine: i };
+    }
+    inFence = false;
+    for (const line of lines) {
+      if (/^```/.test(line)) { inFence = !inFence; continue; }
+      if (inFence) continue;
+      const t = line.trim();
+      if (!t) continue;
+      if (t.startsWith('<!--') || t.startsWith('---')) continue;
+      return { title: t.length > 80 ? t.slice(0, 80) + '\u2026' : t, headingLine: -1 };
+    }
+    return { title: filename, headingLine: -1 };
   }
 
-  function rerenderAllMermaid() {
-    document.querySelectorAll('.mermaid[data-source]').forEach((el, idx) => {
-      const source = decodeURIComponent(el.dataset.source || '');
-      if (!source) return;
-      const id = `mmd-theme-${Date.now()}-${idx}`;
-      mermaid.render(id, source).then(({ svg, bindFunctions }) => {
-        el.innerHTML = svg;
-        if (bindFunctions) bindFunctions(el);
-      }).catch(() => { /* keep previous render on failure */ });
-    });
+  let EMOJI_RE = null;
+  try {
+    EMOJI_RE = new RegExp('^(\\p{Extended_Pictographic}(?:\\uFE0F|\\u200D\\p{Extended_Pictographic})*)\\s*', 'u');
+  } catch (e) { /* older engines: no icon extraction */ }
+
+  function pageMeta(msg) {
+    const info = extractTitleInfo(msg.content, msg.filename);
+    let icon = '📄';
+    let title = info.title;
+    if (EMOJI_RE) {
+      const m = title.match(EMOJI_RE);
+      if (m) {
+        icon = m[1];
+        title = title.slice(m[0].length) || msg.filename;
+      }
+    }
+    return { icon, title, headingLine: info.headingLine };
   }
 
-  function applyTheme(theme) {
-    document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
-    try { localStorage.setItem(THEME_KEY, currentTheme()); } catch (e) { /* ignore */ }
-    syncThemeButton();
-    initMermaidForTheme(currentTheme());
-    rerenderAllMermaid();
+  // Body content = source minus the heading line used as the page title
+  // (only when the title came from a markdown heading; plain-text fallback
+  // titles stay in the body so no content is lost).
+  function bodySource(msg, meta) {
+    if (meta.headingLine < 0) return msg.content || '';
+    const lines = (msg.content || '').split('\n');
+    lines.splice(meta.headingLine, 1);
+    return lines.join('\n');
   }
 
-  syncThemeButton();
-  btnTheme.addEventListener('click', () => {
-    applyTheme(currentTheme() === 'light' ? 'dark' : 'light');
-  });
-  const modalBackdrop = document.getElementById('modal-backdrop');
-  const modalBody = document.getElementById('modal-body');
-  const modalClose = document.getElementById('modal-close');
-
-  function setStatus(state, text) {
-    statusEl.classList.remove('connected', 'error');
-    if (state) statusEl.classList.add(state);
-    statusText.textContent = text;
-  }
-
-  function ensureNoEmpty() {
-    messagesEl.querySelectorAll('.empty').forEach(el => el.remove());
-  }
-
+  // ---- Formatting helpers ----
   function formatTime(unixSec) {
     return new Date(unixSec * 1000).toLocaleString('en-US', { hour12: false });
   }
-
+  function formatShort(unixSec) {
+    const d = new Date(unixSec * 1000);
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) {
+      return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    }
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  }
   function formatPurgeIn(purgeAtSec) {
     const diffMs = purgeAtSec * 1000 - Date.now();
     if (diffMs <= 0) return 'purging soon';
@@ -666,110 +947,128 @@
     return hours > 0 ? `purges in ${hours}h ${mins}m` : `purges in ${mins}m`;
   }
 
-  function renderArticle(msg) {
-    const existing = document.querySelector(`[data-id="${CSS.escape(msg.id)}"]`);
-    if (existing) {
-      // Skip re-render if unchanged. Critical: loadHistory now fires on every
-      // SSE (re)connect, so without this check every reconnect would replace
-      // every article in DOM (visible flicker + lost scroll position).
-      const oldMtime = parseFloat(existing.dataset.mtime || '0');
-      if (oldMtime === msg.mtime) {
-        seen.add(msg.id);
-        return;
-      }
-      const newEl = buildArticle(msg);
-      existing.replaceWith(newEl);
-      runEnhancements(newEl, msg);
-      seen.add(msg.id);
+  // ---- State ----
+  const store = new Map();          // id -> {id, filename, mtime, content, unread}
+  let activeId = null;
+  let initialSyncDone = false;
+  let searchQuery = '';
+
+  const appEl = document.getElementById('app');
+  const sbPagesEl = document.getElementById('sb-pages');
+  const pageEl = document.getElementById('page');
+  const pageScrollEl = document.getElementById('page-scroll');
+  const crumbSepEl = document.getElementById('crumb-sep');
+  const crumbPageEl = document.getElementById('crumb-page');
+  const statusDotEl = document.getElementById('status-dot');
+  const searchEl = document.getElementById('search');
+  const menuEl = document.getElementById('menu');
+  const btnMenu = document.getElementById('btn-menu');
+  const modalBackdrop = document.getElementById('modal-backdrop');
+  const modalBody = document.getElementById('modal-body');
+
+  function setStatus(state, text) {
+    statusDotEl.classList.remove('connected', 'error');
+    if (state) statusDotEl.classList.add(state);
+    statusDotEl.title = text;
+  }
+
+  function sortedMessages() {
+    return [...store.values()].sort((a, b) => b.mtime - a.mtime);
+  }
+
+  // ---- Sidebar ----
+  function renderSidebar() {
+    const list = sortedMessages().filter(msg => {
+      if (!searchQuery) return true;
+      const meta = pageMeta(msg);
+      const q = searchQuery.toLowerCase();
+      return meta.title.toLowerCase().includes(q)
+          || msg.filename.toLowerCase().includes(q)
+          || (msg.content || '').toLowerCase().includes(q);
+    });
+
+    sbPagesEl.innerHTML = '';
+    if (!list.length) {
+      const d = document.createElement('div');
+      d.className = 'sb-empty';
+      d.textContent = searchQuery ? 'No results' : 'No pages yet';
+      sbPagesEl.appendChild(d);
       return;
     }
-    seen.add(msg.id);
-    ensureNoEmpty();
-    const el = buildArticle(msg);
-    messagesEl.appendChild(el);
-    runEnhancements(el, msg);
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-    });
-  }
-
-  function extractTitle(content, filename) {
-    const src = content || '';
-    const lines = src.split('\n');
-    let inFence = false;
-    for (const line of lines) {
-      if (/^```/.test(line)) { inFence = !inFence; continue; }
-      if (inFence) continue;
-      const h = line.match(/^\s*#+\s+(.+?)\s*#*\s*$/);
-      if (h) return h[1].trim();
+    for (const msg of list) {
+      const meta = pageMeta(msg);
+      const item = document.createElement('div');
+      item.className = 'sb-item' + (msg.id === activeId ? ' active' : '');
+      item.dataset.id = msg.id;
+      item.dataset.unread = msg.unread ? 'true' : 'false';
+      item.title = `${meta.title}\n${msg.filename}`;
+      item.innerHTML = `
+        <span class="sb-item-icon">${escapeHtml(meta.icon)}</span>
+        <span class="sb-item-title">${escapeHtml(meta.title)}</span>
+        <span class="sb-item-dot"></span>
+        <span class="sb-item-time">${formatShort(msg.mtime)}</span>
+      `;
+      item.addEventListener('click', () => openPage(msg.id));
+      sbPagesEl.appendChild(item);
     }
-    inFence = false;
-    for (const line of lines) {
-      if (/^```/.test(line)) { inFence = !inFence; continue; }
-      if (inFence) continue;
-      const t = line.trim();
-      if (!t) continue;
-      if (t.startsWith('<!--') || t.startsWith('---')) continue;
-      return t.length > 80 ? t.slice(0, 80) + '\u2026' : t;
-    }
-    return filename;
   }
 
-  function buildArticle(msg) {
-    const article = document.createElement('article');
-    article.className = 'msg';
-    article.dataset.id = msg.id;
-    article.dataset.mtime = msg.mtime;
-    article.dataset.collapsed = 'false';
-
-    const time = formatTime(msg.mtime);
-    const title = extractTitle(msg.content, msg.filename);
-
-    const header = document.createElement('div');
-    header.className = 'msg-header';
-    header.innerHTML = `
-      <button class="msg-toggle" type="button" title="Collapse / expand" aria-label="Collapse / expand">&#9660;</button>
-      <span class="msg-title" title="${escapeHtml(title)}">${escapeHtml(title)}</span>
-      <span class="msg-meta-info">
-        <span class="file" title="${escapeHtml(msg.filename)}">${escapeHtml(msg.filename)}</span>
-        <span class="time">${time}</span>
-        <button class="msg-close" type="button" title="Delete this message" aria-label="Delete">&times;</button>
-      </span>
-    `;
-
-    header.querySelector('.msg-toggle').addEventListener('click', () => {
-      article.dataset.collapsed = article.dataset.collapsed === 'true' ? 'false' : 'true';
-    });
-
-    header.querySelector('.msg-close').addEventListener('click', async (ev) => {
-      ev.stopPropagation();
-      try {
-        const res = await fetch(`/messages/${encodeURIComponent(msg.filename)}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        article.remove();
-        seen.delete(msg.id);
-        if (messagesEl.children.length === 0 && emptyEl) {
-          messagesEl.appendChild(emptyEl.cloneNode(true));
-        }
-      } catch (e) {
-        alert('Delete failed: ' + e.message);
-      }
-    });
-
-    article.appendChild(header);
-
-    const content = document.createElement('div');
-    content.className = 'msg-content';
-    content.innerHTML = renderMarkdown(msg.content || '');
-    article.appendChild(content);
-
-    return article;
+  // ---- Page render ----
+  function renderEmptyPage() {
+    crumbSepEl.style.display = 'none';
+    crumbPageEl.innerHTML = '';
+    pageEl.innerHTML = `
+      <div class="empty-state">
+        <div class="big">🪨</div>
+        <div class="h">No pages yet</div>
+        <div class="s">Drop a <code>.md</code> file into <code>messages/</code> and it will appear here.</div>
+      </div>`;
   }
 
-  function runEnhancements(article, msg) {
-    article.querySelectorAll('.mermaid').forEach((el, idx) => {
+  function openPage(id) {
+    const msg = store.get(id);
+    if (!msg) return;
+    activeId = id;
+    msg.unread = false;
+    renderPage(msg);
+    renderSidebar();
+    pageScrollEl.scrollTop = 0;
+  }
+
+  function renderPage(msg) {
+    const meta = pageMeta(msg);
+
+    crumbSepEl.style.display = '';
+    crumbPageEl.innerHTML = `<span>${escapeHtml(meta.icon)}</span><span class="t">${escapeHtml(meta.title)}</span>`;
+
+    pageEl.innerHTML = '';
+    const icon = document.createElement('div');
+    icon.className = 'page-icon-big';
+    icon.textContent = meta.icon;
+    pageEl.appendChild(icon);
+
+    const h = document.createElement('h1');
+    h.className = 'page-title';
+    h.textContent = meta.title;
+    pageEl.appendChild(h);
+
+    const metaEl = document.createElement('div');
+    metaEl.className = 'page-meta';
+    metaEl.innerHTML = `<span>${formatTime(msg.mtime)}</span><span class="fn">${escapeHtml(msg.filename)}</span>`;
+    pageEl.appendChild(metaEl);
+
+    const body = document.createElement('div');
+    body.className = 'page-body';
+    body.innerHTML = renderMarkdown(bodySource(msg, meta));
+    pageEl.appendChild(body);
+
+    runEnhancements(body, msg);
+  }
+
+  function runEnhancements(root, msg) {
+    root.querySelectorAll('.mermaid').forEach((el, idx) => {
       const source = decodeURIComponent(el.dataset.source || '');
-      const id = `mmd-${msg.id}-${idx}`.replace(/[^\w-]/g, '_');
+      const id = `mmd-${msg.id}-${Date.now()}-${idx}`.replace(/[^\w-]/g, '_');
       mermaid.render(id, source).then(({ svg, bindFunctions }) => {
         el.innerHTML = svg;
         if (bindFunctions) bindFunctions(el);
@@ -779,119 +1078,225 @@
       });
     });
 
+    root.querySelectorAll('.code-copy').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const text = decodeURIComponent(btn.dataset.code || '');
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (e) {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); } catch (e2) { /* give up */ }
+          ta.remove();
+        }
+        btn.textContent = 'Copied ✓';
+        btn.classList.add('done');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1600);
+      });
+    });
+
     if (window.Prism) {
-      try { Prism.highlightAllUnder(article); } catch (e) { /* ignore */ }
+      try { Prism.highlightAllUnder(root); } catch (e) { /* ignore */ }
     }
   }
 
-  function removeArticle(msg) {
-    const existing = document.querySelector(`[data-id="${CSS.escape(msg.id)}"]`);
-    if (existing) existing.remove();
-    seen.delete(msg.id);
+  function rerenderAllMermaid() {
+    const msg = store.get(activeId);
+    if (msg) renderPage(msg);
   }
 
-  // ---- Load history ----
+  // ---- Store mutations ----
+  function upsertMessage(msg, { live }) {
+    const prev = store.get(msg.id);
+    const changed = !prev || prev.mtime !== msg.mtime;
+    store.set(msg.id, {
+      ...msg,
+      unread: changed && live && msg.id !== activeId ? true : (prev ? prev.unread : false),
+    });
+    if (!changed) { renderSidebar(); return; }
+
+    if (live) {
+      // New arrival (or edit) while panel is live: auto-open to keep the
+      // real-time feed feel of the old layout.
+      openPage(msg.id);
+    } else {
+      if (msg.id === activeId) renderPage(store.get(msg.id));
+      renderSidebar();
+    }
+  }
+
+  function removeMessage(msg) {
+    store.delete(msg.id);
+    if (activeId === msg.id) {
+      const next = sortedMessages()[0];
+      activeId = null;
+      if (next) openPage(next.id);
+      else { renderEmptyPage(); renderSidebar(); }
+    } else {
+      renderSidebar();
+    }
+  }
+
+  // ---- History / SSE ----
   async function loadHistory() {
     try {
       const res = await fetch('/messages');
       const list = await res.json();
       list.sort((a, b) => a.mtime - b.mtime);
-      list.forEach(renderArticle);
+      list.forEach(m => upsertMessage(m, { live: false }));
+      if (!activeId && list.length) openPage(list[list.length - 1].id);
+      if (!list.length && !store.size) { renderEmptyPage(); renderSidebar(); }
+      initialSyncDone = true;
     } catch (e) {
       console.error('load history failed', e);
     }
   }
 
-  // ---- SSE ----
   function connectSSE() {
     setStatus('', 'connecting...');
     const es = new EventSource('/events');
     es.onopen = () => {
       setStatus('connected', 'connected');
-      // Re-sync history on every (re)connect: server-side watcher_loop seeds
-      // existing files into _known_file_mtimes without broadcasting them, so
-      // any files that landed while SSE was down would never reach us via
-      // events alone. loadHistory fills the gap; renderArticle's mtime check
-      // makes repeated calls cheap (no DOM thrash).
+      // Re-sync history on every (re)connect: files that landed while SSE was
+      // down would never reach us via events alone.
       loadHistory();
     };
     es.addEventListener('message', ev => {
-      try { renderArticle(JSON.parse(ev.data)); }
+      try { upsertMessage(JSON.parse(ev.data), { live: initialSyncDone }); }
       catch (e) { console.error(e); }
     });
     es.addEventListener('delete', ev => {
-      try { removeArticle(JSON.parse(ev.data)); }
+      try { removeMessage(JSON.parse(ev.data)); }
       catch (e) { console.error(e); }
     });
     es.onerror = () => setStatus('error', 'reconnecting...');
   }
 
-  // ---- Clear button ----
-  btnClear.addEventListener('click', async () => {
-    if (!confirm('Clear all messages?')) return;
+  // ---- Sidebar chrome ----
+  document.getElementById('btn-sb-close').addEventListener('click', () => {
+    appEl.dataset.sidebar = 'closed';
+  });
+  document.getElementById('btn-sb-open').addEventListener('click', () => {
+    appEl.dataset.sidebar = 'open';
+  });
+
+  searchEl.addEventListener('input', () => {
+    searchQuery = searchEl.value.trim();
+    renderSidebar();
+  });
+
+  // ---- Theme toggle ----
+  const btnTheme = document.getElementById('btn-theme');
+  const themeIc = document.getElementById('theme-ic');
+  const themeLabel = document.getElementById('theme-label');
+  function syncThemeButton() {
+    const dark = currentTheme() === 'dark';
+    themeIc.textContent = dark ? '☀️' : '🌙';
+    themeLabel.textContent = dark ? 'Light mode' : 'Dark mode';
+  }
+  btnTheme.addEventListener('click', () => {
+    document.documentElement.dataset.theme = currentTheme() === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem(THEME_KEY, currentTheme()); } catch (e) { /* ignore */ }
+    syncThemeButton();
+    initMermaidForTheme(currentTheme());
+    rerenderAllMermaid();
+  });
+  syncThemeButton();
+
+  // ---- ••• menu ----
+  function closeMenu() { menuEl.dataset.open = 'false'; }
+  btnMenu.addEventListener('click', ev => {
+    ev.stopPropagation();
+    if (menuEl.dataset.open === 'true') { closeMenu(); return; }
+    const r = btnMenu.getBoundingClientRect();
+    menuEl.style.top = `${r.bottom + 4}px`;
+    menuEl.style.right = `${Math.max(8, window.innerWidth - r.right)}px`;
+    menuEl.style.left = 'auto';
+    menuEl.dataset.open = 'true';
+  });
+  document.addEventListener('click', ev => {
+    if (menuEl.dataset.open === 'true' && !menuEl.contains(ev.target)) closeMenu();
+  });
+
+  document.getElementById('menu-delete').addEventListener('click', async () => {
+    closeMenu();
+    const msg = store.get(activeId);
+    if (!msg) return;
+    try {
+      const res = await fetch(`/messages/${encodeURIComponent(msg.filename)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      removeMessage(msg);
+    } catch (e) {
+      alert('Delete failed: ' + e.message);
+    }
+  });
+
+  // ---- Clear all ----
+  document.getElementById('btn-clear').addEventListener('click', async () => {
+    if (!confirm('Move all pages to Trash?')) return;
     try {
       await fetch('/clear', { method: 'POST' });
-      messagesEl.innerHTML = '';
-      seen.clear();
-      messagesEl.appendChild(emptyEl.cloneNode(true));
+      store.clear();
+      activeId = null;
+      renderEmptyPage();
+      renderSidebar();
     } catch (e) {
       alert('Clear failed: ' + e.message);
     }
   });
 
-  // ---- History modal ----
-  function openHistory() {
+  // ---- Trash modal ----
+  function openTrash() {
     modalBackdrop.dataset.open = 'true';
     modalBody.innerHTML = '<div class="trash-empty">loading...</div>';
     fetch('/trash').then(r => r.json()).then(list => {
-      // Server returns ascending by filename; we want newest-first by mtime.
       list.sort((a, b) => b.mtime - a.mtime);
       renderTrashList(list);
     }).catch(e => {
       modalBody.innerHTML = `<div class="trash-empty">load failed: ${escapeHtml(e.message)}</div>`;
     });
   }
-
-  function closeHistory() {
-    modalBackdrop.dataset.open = 'false';
-  }
+  function closeTrash() { modalBackdrop.dataset.open = 'false'; }
 
   function renderTrashList(list) {
     if (!list.length) {
-      modalBody.innerHTML = '<div class="trash-empty">no deleted messages</div>';
+      modalBody.innerHTML = '<div class="trash-empty">Trash is empty</div>';
       return;
     }
-    const wrap = document.createElement('div');
-    wrap.className = 'trash-list';
-    list.forEach(msg => wrap.appendChild(buildTrashItem(msg)));
     modalBody.innerHTML = '';
-    modalBody.appendChild(wrap);
+    list.forEach(msg => modalBody.appendChild(buildTrashItem(msg)));
   }
 
   function buildTrashItem(msg) {
     const item = document.createElement('div');
     item.className = 'trash-item';
-    item.dataset.filename = msg.filename;
     item.dataset.expanded = 'false';
 
-    const title = extractTitle(msg.content, msg.filename);
-    const deletedAt = formatTime(msg.mtime);
+    const meta = pageMeta(msg);
     const purge = msg.purge_at ? formatPurgeIn(msg.purge_at) : '';
 
     const row = document.createElement('div');
-    row.className = 'trash-item-row';
+    row.className = 'trash-row';
     row.innerHTML = `
-      <span class="trash-item-title" title="${escapeHtml(title)}">${escapeHtml(title)}</span>
-      <span class="trash-item-meta">
-        <span class="time">deleted ${escapeHtml(deletedAt)}</span>
-        <span class="filename" title="${escapeHtml(msg.filename)}">${escapeHtml(msg.filename)}</span>
+      <span class="trash-title" title="${escapeHtml(msg.filename)}">
+        <span>${escapeHtml(meta.icon)}</span><span>${escapeHtml(meta.title)}</span>
+      </span>
+      <span class="trash-meta">
+        <span>deleted ${escapeHtml(formatTime(msg.mtime))}</span>
         ${purge ? `<span class="purge">${escapeHtml(purge)}</span>` : ''}
       </span>
       <button class="trash-restore" type="button">Restore</button>
     `;
 
-    row.querySelector('.trash-item-title').addEventListener('click', () => {
+    row.querySelector('.trash-title').addEventListener('click', () => {
       item.dataset.expanded = item.dataset.expanded === 'true' ? 'false' : 'true';
+      const pv = item.querySelector('.trash-preview');
+      if (item.dataset.expanded === 'true' && !pv.dataset.rendered) {
+        pv.innerHTML = renderMarkdown(msg.content || '');
+        pv.dataset.rendered = 'true';
+      }
     });
 
     const restoreBtn = row.querySelector('.trash-restore');
@@ -901,11 +1306,9 @@
       try {
         const res = await fetch(`/trash/restore/${encodeURIComponent(msg.filename)}`, { method: 'POST' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        // Restored file lands in messages/; the watcher will broadcast it via
-        // SSE, so the main list updates on its own. We just remove this row.
         item.remove();
         if (!modalBody.querySelector('.trash-item')) {
-          modalBody.innerHTML = '<div class="trash-empty">no deleted messages</div>';
+          modalBody.innerHTML = '<div class="trash-empty">Trash is empty</div>';
         }
       } catch (e) {
         restoreBtn.disabled = false;
@@ -918,19 +1321,21 @@
 
     const preview = document.createElement('div');
     preview.className = 'trash-preview';
-    preview.innerHTML = renderMarkdown(msg.content || '');
     item.appendChild(preview);
 
     return item;
   }
 
-  btnHistory.addEventListener('click', openHistory);
-  modalClose.addEventListener('click', closeHistory);
+  document.getElementById('btn-trash').addEventListener('click', openTrash);
+  document.getElementById('modal-close').addEventListener('click', closeTrash);
   modalBackdrop.addEventListener('click', ev => {
-    if (ev.target === modalBackdrop) closeHistory();
+    if (ev.target === modalBackdrop) closeTrash();
   });
   document.addEventListener('keydown', ev => {
-    if (ev.key === 'Escape' && modalBackdrop.dataset.open === 'true') closeHistory();
+    if (ev.key === 'Escape') {
+      if (modalBackdrop.dataset.open === 'true') closeTrash();
+      closeMenu();
+    }
   });
 
   connectSSE();
