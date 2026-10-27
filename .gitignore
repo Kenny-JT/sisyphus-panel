@@ -2,6 +2,9 @@
 messages/*
 !messages/.gitkeep
 
+# Log written when the server runs in the background (start-panel.vbs)
+panel.log
+
 # Python
 __pycache__/
 *.pyc

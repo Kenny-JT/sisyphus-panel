@@ -32,6 +32,10 @@ py -3.12 panel.py
 
 The panel opens at <http://localhost:7878>. Hit Ctrl+C to stop. Drop a `.md` file into `messages/` and watch it render.
 
+### Run it in the background (Windows)
+
+Double-click `start-panel.vbs` (or run `wscript start-panel.vbs`; add `--no-browser` to skip the auto-open). The server starts with no console window and no taskbar button, and its output is appended to `panel.log`. Stop it with `stop-panel.bat`. `start-panel.bat` still runs it in a visible console if you want to watch the log live.
+
 ## Push content
 
 ### Method A · Write a file (the recommended way)
@@ -118,7 +122,7 @@ For OpenCode users, see `AGENTS.md` snippets in the repo's `examples/` folder (i
 
 **Port 7878 already in use?** Edit `PORT` at the top of `panel.py`.
 
-**Browser shows "reconnecting…"?** The panel process probably isn't running. Restart it; the browser will reconnect within a few seconds and reload history automatically.
+**Browser shows "reconnecting…"?** The panel process probably isn't running. Restart it; the browser will reconnect within a few seconds and reload history automatically. If it was running in the background, the end of `panel.log` says why it stopped.
 
 **Lost a message after browser refresh?** You shouldn't — files persist in `messages/`, and refresh re-fetches them. If it's missing from disk too, check `messages/.trash/` (it's recoverable for 10 days).
 
