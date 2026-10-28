@@ -17,6 +17,7 @@ Use it when terminal-only output is awkward for the content you're producing (fo
 - **Just write a file** — no API, no SDK, no daemon protocol; any tool that can write a `.md` file works
 - **Restart-resilient** — messages persist across panel restarts; nothing gets wiped silently
 - **Soft delete + history** — deleted messages go to `messages/.trash/`; the **History** button in the toolbar lists them newest-first and one-click restores them back into the panel. Auto-purged after 10 days.
+- **Reorder pages** — drag pages up and down in the sidebar, or move one with Alt+↑ / Alt+↓ (the focused row, else the open page). Tab or ↑ ↓ moves between pages, Enter opens one and Delete moves it to the Trash. The order is saved in `messages/.order.json`, so it survives restarts and shows up in every open tab. New and restored pages land at the top; **Sort by newest** (next to the Pages label) drops the manual order.
 - **Collapsible cards** — click the triangle to fold long messages; sticky header keeps title + delete button reachable while scrolling
 - **Zero install** — Python 3.8+ stdlib only, no `pip install` needed; one HTML file, four CDN libs
 
@@ -40,7 +41,7 @@ Double-click `start-panel.vbs` (or run `wscript start-panel.vbs`; add `--no-brow
 
 ### Method A · Write a file (the recommended way)
 
-Any process that can write a UTF-8 file can push to the panel. Filenames sort the display order; using a timestamp prefix keeps things tidy:
+Any process that can write a UTF-8 file can push to the panel. New pages show up at the top of the sidebar; a timestamp prefix keeps the filenames tidy:
 
 ```powershell
 "# Hello`n`n$E = mc^2$" | Set-Content "messages/20260509-120000-greeting.md" -Encoding utf8
@@ -83,11 +84,13 @@ curl -X POST http://localhost:7878/push --data-binary "## Title `$E=mc^2`$"
 | GET    | `/`                             | Panel HTML                                                         |
 | GET    | `/messages`                     | All current messages as JSON array                                 |
 | GET    | `/trash`                        | All deleted messages as JSON array (each item includes `purge_at`) |
-| GET    | `/events`                       | SSE stream — `message` and `delete` events                         |
+| GET    | `/events`                       | SSE stream — `message`, `delete` and `order` events                |
 | GET    | `/health`                       | `{"status":"ok","messages_dir":...}`                               |
+| GET    | `/order`                        | Saved sidebar order: `{"order": [filenames, top first]}`           |
 | POST   | `/push`                         | Push a message (text body or JSON)                                 |
 | POST   | `/clear`                        | Move all messages to `.trash/`                                     |
 | POST   | `/trash/restore/<filename>`     | Restore one message from `.trash/` back to `messages/`             |
+| PUT    | `/order`                        | Save the sidebar order (body `{"order": [...]}`); pushed to every tab as an SSE `order` event |
 | DELETE | `/messages/<filename>`          | Move one message to `.trash/`                                      |
 
 ## How delete and restore work
@@ -114,7 +117,7 @@ For OpenCode users, see `AGENTS.md` snippets in the repo's `examples/` folder (i
 ## Tech notes
 
 - **Backend**: Python 3.8+ stdlib only — `http.server`, `socketserver`, `threading`, `Queue`. No `pip install`. Single file: `panel.py`.
-- **Transport**: SSE (`text/event-stream`) with 15-second heartbeat. Browser auto-reconnects on disconnect; on every (re)connect it re-fetches `/messages` to recover any events missed while disconnected.
+- **Transport**: SSE (`text/event-stream`) with 15-second heartbeat. Browser auto-reconnects on disconnect; on every (re)connect it re-fetches `/messages` and `/order` to recover any events missed while disconnected.
 - **Frontend**: Single HTML file, CDN-loaded `marked@12` + `katex@0.16` + `prismjs@1.29` + `mermaid@10.9`. Dark theme. No build step.
 - **Watcher**: Polling-based (mtime diff every 800ms). Reliable across editors and OSes; no inotify/FSEvents dependency.
 

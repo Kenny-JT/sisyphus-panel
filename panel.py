@@ -10,6 +10,7 @@ Open:     http://localhost:7878
 Push:     drop a *.md file into ./messages/  (or POST /push, body = text or {"content","slug"})
 Clear:    Clear button in the UI  (or POST /clear -> moves files to .trash/)
 History:  History button in the UI (lists .trash/ and lets you restore deleted files)
+Reorder:  drag pages in the sidebar or Alt+Up/Down (saved to messages/.order.json; GET/PUT /order)
 
 Pure Python 3.8+ stdlib, no pip install required.
 """
@@ -35,6 +36,9 @@ MESSAGES_DIR = ROOT / "messages"
 # Trash placement contract: dot-prefixed subdir of MESSAGES_DIR so the
 # non-recursive Path.glob("*.md") in list_messages()/watcher_loop ignores it.
 TRASH_DIR = MESSAGES_DIR / ".trash"
+# Sidebar page order saved by drag-to-reorder: {"order": [filenames, top first]}.
+# Not *.md, so the message globs never pick it up.
+ORDER_FILE = MESSAGES_DIR / ".order.json"
 MESSAGES_DIR.mkdir(parents=True, exist_ok=True)
 TRASH_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -55,6 +59,8 @@ RESTORED_SUFFIX_FMT = ".restored-{ms}"
 _clients_lock = threading.Lock()
 _clients: list[Queue] = []
 _known_file_mtimes: dict[str, float] = {}
+# Serializes order reads/writes so the file and the last `order` broadcast agree.
+_order_lock = threading.Lock()
 
 
 def _read_message(path: Path) -> dict | None:
@@ -167,6 +173,57 @@ def gc_trash() -> int:
     return deleted
 
 
+def _is_valid_order(order) -> bool:
+    """A list of unique bare *.md filenames (no directory parts)."""
+    return (
+        isinstance(order, list)
+        and all(isinstance(n, str) and n.endswith(".md") and Path(n).name == n for n in order)
+        and len(set(order)) == len(order)
+    )
+
+
+def read_order() -> list[str]:
+    """Saved sidebar order, top first; [] when nothing valid is saved. It may
+    still name pages deleted since it was saved; the UI skips those. Raises
+    OSError when the file exists but can't be read."""
+    try:
+        data = json.loads(ORDER_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return []
+    except ValueError as exc:
+        print(f"[panel] ignoring malformed {ORDER_FILE.name}: {exc}", file=sys.stderr)
+        return []
+    order = data.get("order") if isinstance(data, dict) else None
+    if not _is_valid_order(order):
+        print(f"[panel] ignoring malformed {ORDER_FILE.name}", file=sys.stderr)
+        return []
+    return order
+
+
+def write_order(order: list[str]) -> None:
+    # Write a temp file and rename it over the old one, so a crash mid-write
+    # can't leave a truncated order file behind.
+    tmp = ORDER_FILE.with_name(ORDER_FILE.name + ".tmp")
+    tmp.write_text(json.dumps({"order": order}, ensure_ascii=False, indent=1), encoding="utf-8")
+    tmp.replace(ORDER_FILE)
+
+
+def forget_order_slot(name: str) -> None:
+    """Drop `name` from the saved order, so a page restored from the trash
+    lands on top like a new push instead of in a slot it held before."""
+    with _order_lock:
+        try:
+            order = read_order()
+            if name not in order:
+                return
+            order.remove(name)
+            write_order(order)
+        except OSError as exc:
+            print(f"[panel] could not update {ORDER_FILE.name}: {exc}", file=sys.stderr)
+            return
+        broadcast({"order": order}, event="order")
+
+
 def broadcast(msg: dict, event: str = "message") -> None:
     payload = f"event: {event}\ndata: {json.dumps(msg, ensure_ascii=False)}\n\n"
     with _clients_lock:
@@ -221,7 +278,7 @@ def watcher_loop() -> None:
 
 class Handler(http.server.BaseHTTPRequestHandler):
     server_version = "SisyphusPanel/1.0"
-    SILENT_PATHS = ("/events", "/messages", "/trash", "/health")
+    SILENT_PATHS = ("/events", "/messages", "/trash", "/health", "/order")
 
     def log_message(self, fmt: str, *args) -> None:
         if any(p in self.path for p in self.SILENT_PATHS):
@@ -238,6 +295,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._serve_messages()
         if path == "/trash":
             return self._serve_trash()
+        if path == "/order":
+            return self._serve_order()
         if path == "/health":
             return self._serve_json({"status": "ok", "messages_dir": str(MESSAGES_DIR)})
         self.send_error(404, "not found")
@@ -250,6 +309,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._handle_clear()
         if path.startswith("/trash/restore/"):
             return self._handle_restore(unquote(path[len("/trash/restore/"):]))
+        self.send_error(404, "not found")
+
+    def do_PUT(self) -> None:
+        path = self.path.split("?", 1)[0]
+        if path == "/order":
+            return self._handle_put_order()
         self.send_error(404, "not found")
 
     def do_DELETE(self) -> None:
@@ -354,6 +419,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         moved = _move_to_trash(target)
         if moved is None:
+            # Two tabs deleting the same page: the other request moved it first.
+            if not target.exists():
+                self.send_error(404, "no such message")
+                return
             self.send_error(500, "trash move failed")
             return
         self._serve_json({"status": "ok", "deleted": filename, "trashed_as": moved.name})
@@ -375,10 +444,46 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if moved is None:
             self.send_error(500, "restore failed")
             return
+        forget_order_slot(moved.name)
         # Don't broadcast manually: the watcher's next poll cycle will detect
         # the new file in MESSAGES_DIR and push a `message` event to every
         # connected browser, which keeps the SSE story single-sourced.
         self._serve_json({"status": "ok", "restored": filename, "as": moved.name})
+
+    def _serve_order(self) -> None:
+        try:
+            with _order_lock:
+                order = read_order()
+        except OSError as exc:
+            # An error, not [], so tabs keep the order they show instead of
+            # falling back to newest first (and saving that over it).
+            print(f"[panel] reading {ORDER_FILE.name} failed: {exc}", file=sys.stderr)
+            self.send_error(500, "could not read the order")
+            return
+        self._serve_json({"order": order})
+
+    def _handle_put_order(self) -> None:
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        raw = self.rfile.read(length) if length else b""
+        try:
+            order = json.loads(raw.decode("utf-8")).get("order")
+        except (ValueError, AttributeError):
+            order = None
+        if not _is_valid_order(order):
+            self.send_error(400, 'expected JSON {"order": [unique *.md filenames]}')
+            return
+        with _order_lock:
+            try:
+                write_order(order)
+            except OSError as exc:
+                print(f"[panel] saving {ORDER_FILE.name} failed: {exc}", file=sys.stderr)
+                self.send_error(500, "could not save the order")
+                return
+            # Broadcast inside the lock: racing PUTs reach every tab in the
+            # same order they hit the disk.
+            broadcast({"order": order}, event="order")
+        print(f"[panel] -> order ({len(order)} pages)")
+        self._serve_json({"status": "ok", "order": order})
 
     def _handle_clear(self) -> None:
         moved = 0
@@ -391,6 +496,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
 class ThreadedServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
+    # Pending-connection backlog (socketserver's default is 5): a burst of tabs
+    # reconnecting at once shouldn't be refused.
+    request_queue_size = 32
 
 
 def main() -> int:
