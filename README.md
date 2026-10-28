@@ -34,7 +34,7 @@ The panel opens at <http://localhost:7878>. Hit Ctrl+C to stop. Drop a `.md` fil
 
 ### Run it in the background (Windows)
 
-Double-click `start-panel.vbs` (or run `wscript start-panel.vbs`; add `--no-browser` to skip the auto-open). The server starts with no console window and no taskbar button, and its output is appended to `panel.log`. If the panel is already running, it just opens the page instead of starting a second copy. Stop it with `stop-panel.bat`. `start-panel.bat` still runs it in a visible console if you want to watch the log live.
+Double-click `start-panel.vbs` (or run `wscript start-panel.vbs`; add `--no-browser` to skip the auto-open). The server starts with no console window and no taskbar button, and its output is appended to `panel.log` (once that passes 1 MB, the next start moves it to `panel.log.1`). If the panel is already running, it just opens the page instead of starting a second copy. Stop it with `stop-panel.bat`. `start-panel.bat` still runs it in a visible console if you want to watch the log live.
 
 ## Push content
 

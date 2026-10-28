@@ -17,6 +17,21 @@ If PanelRunning() Then
     If InStr(args, "--no-browser") = 0 Then shell.Run "http://127.0.0.1:7878"
     WScript.Quit
 End If
+
+' panel.log only ever grows while the server runs (its cmd keeps it open), so
+' rotate it here, when nothing has it open: past 1 MB it becomes panel.log.1.
+Dim logPath
+logPath = shell.CurrentDirectory & "\panel.log"
+If fso.FileExists(logPath) Then
+    If fso.GetFile(logPath).Size > 1048576 Then
+        ' Best effort: if something holds the log open without sharing it (a log
+        ' viewer, antivirus), keep appending to the big log rather than not starting.
+        On Error Resume Next
+        If fso.FileExists(logPath & ".1") Then fso.DeleteFile logPath & ".1", True
+        fso.MoveFile logPath, logPath & ".1"
+        On Error GoTo 0
+    End If
+End If
 ' Window style 0 = hidden; False = return immediately.
 ' py -3.12 pins the Windows Python (see start-panel.bat). -X utf8 keeps print()
 ' from failing on non-ASCII filenames once stdout is a file; -u keeps the log current.

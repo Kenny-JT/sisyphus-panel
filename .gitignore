@@ -4,6 +4,7 @@ messages/*
 
 # Log written when the server runs in the background (start-panel.vbs)
 panel.log
+panel.log.1
 
 # Python
 __pycache__/
