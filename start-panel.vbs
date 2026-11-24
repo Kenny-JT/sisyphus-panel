@@ -2,10 +2,12 @@
 ' no console window, no taskbar button.
 '   Double-click this file, or run:  wscript start-panel.vbs [--no-browser]
 ' If the panel is already running it just opens the page (nothing with --no-browser).
+' The page opens in the panel's installed Chrome app when chrome-app.txt names it
+' (see README), else in a browser tab.
 ' Output is appended to panel.log next to this file. Stop it with stop-panel.bat.
 ' To watch the log live in a console instead, use start-panel.bat.
 Option Explicit
-Dim fso, shell, args, i
+Dim fso, shell, args, i, app
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set shell = CreateObject("WScript.Shell")
 shell.CurrentDirectory = fso.GetParentFolderName(WScript.ScriptFullName)
@@ -14,7 +16,10 @@ For i = 0 To WScript.Arguments.Count - 1
     args = args & " " & WScript.Arguments(i)
 Next
 If PanelRunning() Then
-    If InStr(args, "--no-browser") = 0 Then shell.Run "http://127.0.0.1:7878"
+    If InStr(args, "--no-browser") = 0 Then
+        app = ChromeApp()
+        If app = "" Then shell.Run "http://127.0.0.1:7878" Else shell.Run "chrome.exe " & app
+    End If
     WScript.Quit
 End If
 
@@ -46,4 +51,18 @@ Function PanelRunning()
     fso.OpenTextFile(shell.CurrentDirectory & "\panel.log", 8, True).Close
     PanelRunning = (Err.Number <> 0)
     On Error GoTo 0
+End Function
+
+' The panel's installed Chrome app: Chrome arguments from the first line of the
+' optional, per-machine chrome-app.txt next to this file (panel.py reads the same
+' file when it opens the page). "" = no app, use a browser tab.
+Function ChromeApp()
+    Dim path, ts
+    ChromeApp = ""
+    path = shell.CurrentDirectory & "\chrome-app.txt"
+    If fso.FileExists(path) Then
+        Set ts = fso.OpenTextFile(path)
+        If Not ts.AtEndOfStream Then ChromeApp = Trim(ts.ReadLine)
+        ts.Close
+    End If
 End Function

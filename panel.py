@@ -11,6 +11,7 @@ Push:     drop a *.md file into ./messages/  (or POST /push, body = text or {"co
 Clear:    Clear button in the UI  (or POST /clear -> moves files to .trash/)
 History:  History button in the UI (lists .trash/ and lets you restore deleted files)
 Reorder:  drag pages in the sidebar or Alt+Up/Down (saved to messages/.order.json; GET/PUT /order)
+App:      chrome-app.txt (optional, per machine) opens the page in the panel's installed Chrome app
 
 Pure Python 3.8+ stdlib, no pip install required.
 """
@@ -39,6 +40,11 @@ TRASH_DIR = MESSAGES_DIR / ".trash"
 # Sidebar page order saved by drag-to-reorder: {"order": [filenames, top first]}.
 # Not *.md, so the message globs never pick it up.
 ORDER_FILE = MESSAGES_DIR / ".order.json"
+# Optional, per machine (git-ignored): one line of Chrome arguments that open the
+# panel's installed Chrome app, copied from the app's shortcut, e.g.
+# "--profile-directory=Default --app-id=<id>". With it the page opens in that app
+# window instead of a browser tab (Windows). start-panel.vbs reads it too.
+CHROME_APP_FILE = ROOT / "chrome-app.txt"
 MESSAGES_DIR.mkdir(parents=True, exist_ok=True)
 TRASH_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -501,6 +507,19 @@ class ThreadedServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     request_queue_size = 32
 
 
+def open_page(url: str) -> None:
+    """Open the panel: in its installed Chrome app if chrome-app.txt names one, else in a browser tab."""
+    app = ""
+    if CHROME_APP_FILE.exists():
+        with CHROME_APP_FILE.open(encoding="utf-8-sig") as f:
+            app = f.readline().strip()
+    if app:
+        # ShellExecute finds chrome.exe through Chrome's App Paths registration.
+        os.startfile("chrome.exe", arguments=app)
+    else:
+        webbrowser.open(url)
+
+
 def main() -> int:
     if not INDEX_FILE.exists():
         print(f"[panel] ERROR: index.html not found at {INDEX_FILE}", file=sys.stderr)
@@ -519,7 +538,7 @@ def main() -> int:
     print("=" * 60)
 
     if "--no-browser" not in sys.argv:
-        threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+        threading.Timer(0.6, open_page, (url,)).start()
 
     server = ThreadedServer((HOST, PORT), Handler)
     try:

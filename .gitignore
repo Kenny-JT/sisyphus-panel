@@ -6,6 +6,9 @@ messages/*
 panel.log
 panel.log.1
 
+# Per-machine arguments for the panel's installed Chrome app (README: Open it as a Chrome app)
+chrome-app.txt
+
 # Python
 __pycache__/
 *.pyc

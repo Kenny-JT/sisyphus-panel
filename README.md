@@ -37,6 +37,10 @@ The panel opens at <http://localhost:7878>. Hit Ctrl+C to stop. Drop a `.md` fil
 
 Double-click `start-panel.vbs` (or run `wscript start-panel.vbs`; add `--no-browser` to skip the auto-open). The server starts with no console window and no taskbar button, and its output is appended to `panel.log` (once that passes 1 MB, the next start moves it to `panel.log.1`). If the panel is already running, it just opens the page instead of starting a second copy. Stop it with `stop-panel.bat`. `start-panel.bat` still runs it in a visible console if you want to watch the log live.
 
+### Open it as a Chrome app (Windows)
+
+If you installed the panel as a Chrome app (on the panel page: ⋮ → Cast, save, and share → Install page as app), it can open in that app's window instead of a browser tab. Put the arguments from the app's shortcut into a one-line `chrome-app.txt` next to `panel.py`: the shortcut is in `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Chrome Apps`, and you want everything after `chrome_proxy.exe` in its Target, e.g. `--profile-directory=Default --app-id=abcdefghijklmnopabcdefghijklmnop`. `panel.py` then opens the app when it starts, and `start-panel.vbs` opens it when the panel is already running. Delete the file to go back to a browser tab. It is git-ignored, since the arguments belong to your own Chrome profile.
+
 ## Push content
 
 ### Method A · Write a file (the recommended way)
