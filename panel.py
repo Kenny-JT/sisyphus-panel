@@ -45,6 +45,8 @@ ORDER_FILE = MESSAGES_DIR / ".order.json"
 # "--profile-directory=Default --app-id=<id>". With it the page opens in that app
 # window instead of a browser tab (Windows). start-panel.vbs reads it too.
 CHROME_APP_FILE = ROOT / "chrome-app.txt"
+# Paper textures for the page background (index.html's Background menu).
+BACKGROUNDS_DIR = ROOT / "backgrounds"
 MESSAGES_DIR.mkdir(parents=True, exist_ok=True)
 TRASH_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -284,7 +286,7 @@ def watcher_loop() -> None:
 
 class Handler(http.server.BaseHTTPRequestHandler):
     server_version = "SisyphusPanel/1.0"
-    SILENT_PATHS = ("/events", "/messages", "/trash", "/health", "/order")
+    SILENT_PATHS = ("/events", "/messages", "/trash", "/health", "/order", "/backgrounds/")
 
     def log_message(self, fmt: str, *args) -> None:
         if any(p in self.path for p in self.SILENT_PATHS):
@@ -305,6 +307,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._serve_order()
         if path == "/health":
             return self._serve_json({"status": "ok", "messages_dir": str(MESSAGES_DIR)})
+        if path.startswith("/backgrounds/"):
+            return self._serve_background(unquote(path[len("/backgrounds/"):]))
         self.send_error(404, "not found")
 
     def do_POST(self) -> None:
@@ -329,11 +333,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._handle_delete_one(unquote(path[len("/messages/"):]))
         self.send_error(404, "not found")
 
-    def _send_bytes(self, status: int, content_type: str, body: bytes) -> None:
+    def _send_bytes(self, status: int, content_type: str, body: bytes,
+                    cache_control: str = "no-store") -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", cache_control)
         self.end_headers()
         try:
             self.wfile.write(body)
@@ -350,6 +355,19 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         body = INDEX_FILE.read_bytes()
         self._send_bytes(200, "text/html; charset=utf-8", body)
+
+    def _serve_background(self, filename: str) -> None:
+        # Same path-traversal guard as delete, anchored at BACKGROUNDS_DIR.
+        target = BACKGROUNDS_DIR / filename
+        try:
+            found = (target.suffix == ".png" and target.is_file()
+                     and target.resolve().parent == BACKGROUNDS_DIR.resolve())
+        except (OSError, ValueError):
+            found = False
+        if not found:
+            self.send_error(404, "no such background")
+            return
+        self._send_bytes(200, "image/png", target.read_bytes(), cache_control="max-age=86400")
 
     def _serve_messages(self) -> None:
         self._serve_json(list_messages())

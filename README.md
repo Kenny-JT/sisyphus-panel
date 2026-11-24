@@ -21,6 +21,7 @@ Use it when terminal-only output is awkward for the content you're producing (fo
 - **Collapsible cards** — click the triangle to fold long messages; sticky header keeps title + delete button reachable while scrolling
 - **Long pages stay responsive** — a page goes in a slice at a time, so a document of several hundred KB shows its first screen at once and can be scrolled while the rest follows
 - **Reading progress** — a ring and a percentage in the top bar show how far through the open page you are (100% once the end of the text is in view)
+- **Paper backgrounds** — **Background** at the foot of the sidebar puts the pages on rice paper, old paper, graph paper or a dot grid (or back to Plain). Each paper has a light and a dark version, and the choice is remembered by the browser
 - **Zero install** — Python 3.8+ stdlib only, no `pip install` needed; one HTML file, four CDN libs
 
 ## Quick start
@@ -93,6 +94,7 @@ curl -X POST http://localhost:7878/push --data-binary "## Title `$E=mc^2`$"
 | GET    | `/events`                       | SSE stream — `message`, `delete` and `order` events                |
 | GET    | `/health`                       | `{"status":"ok","messages_dir":...}`                               |
 | GET    | `/order`                        | Saved sidebar order: `{"order": [filenames, top first]}`           |
+| GET    | `/backgrounds/<file>.png`       | Paper texture from `backgrounds/` (used by the Background menu)    |
 | POST   | `/push`                         | Push a message (text body or JSON)                                 |
 | POST   | `/clear`                        | Move all messages to `.trash/`                                     |
 | POST   | `/trash/restore/<filename>`     | Restore one message from `.trash/` back to `messages/`             |
@@ -124,7 +126,7 @@ For OpenCode users, see `AGENTS.md` snippets in the repo's `examples/` folder (i
 
 - **Backend**: Python 3.8+ stdlib only — `http.server`, `socketserver`, `threading`, `Queue`. No `pip install`. Single file: `panel.py`.
 - **Transport**: SSE (`text/event-stream`) with 15-second heartbeat. Browser auto-reconnects on disconnect; on every (re)connect it re-fetches `/messages` and `/order` to recover any events missed while disconnected.
-- **Frontend**: Single HTML file, CDN-loaded `marked@12` + `katex@0.16` + `prismjs@1.29` + `mermaid@10.9`. Dark theme. No build step.
+- **Frontend**: Single HTML file, CDN-loaded `marked@12` + `katex@0.16` + `prismjs@1.29` + `mermaid@10.9`. Light and dark themes, optional paper backgrounds. No build step.
 - **Watcher**: Polling-based (mtime diff every 800ms). Reliable across editors and OSes; no inotify/FSEvents dependency.
 
 ## Troubleshooting
@@ -140,3 +142,10 @@ For OpenCode users, see `AGENTS.md` snippets in the repo's `examples/` folder (i
 ## License
 
 MIT.
+
+The paper textures in `backgrounds/` are not covered by the MIT license. They come from [Transparent Textures](https://www.transparenttextures.com/), which builds on [Subtle Patterns](https://github.com/atlemo/SubtlePatterns) (CC BY-SA 3.0); graph paper and the dot grid are drawn in CSS:
+
+| File | Pattern | Author |
+| ---- | ------- | ------ |
+| `rice-paper.png` | Rice Paper | Atle Mo |
+| `paper-3.png` | Paper 3 | Atle Mo |

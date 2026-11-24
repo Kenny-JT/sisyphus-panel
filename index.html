@@ -98,6 +98,88 @@
     --tok-variable: #e6edf3;
   }
 
+  /* ============================================================
+     Paper backgrounds (sidebar → Background). A paper is a tint per theme
+     plus a pattern (--paper-img, background layers): a tiling texture from
+     backgrounds/ (credits in README) or lines / dots drawn here. Light mode
+     draws it as it is; dark mode uses its alpha as a mask over --paper-ink,
+     so the same grain shows on dark paper. --paper-strength fades it in both.
+     "Plain" leaves html without data-paper. These rules also draw the
+     Background menu's swatches, so every [data-paper] resets the optional
+     values instead of inheriting them from the page's paper.
+     ============================================================ */
+  [data-paper] { --paper: var(--paper-light); --paper-ink: rgba(255, 255, 255, 0.4); --paper-strength: 1; }
+  [data-paper="plain"] { --paper-light: #ffffff; --paper-dark: #191919; }
+  [data-paper="rice"] {
+    --paper-light: #f7f3ea; --paper-dark: #1f1d1a;
+    --paper-img: url("/backgrounds/rice-paper.png");
+    --paper-ink: rgba(255, 255, 255, 0.3);
+  }
+  [data-paper="old"] {
+    --paper-light: #f4e8cc; --paper-dark: #221e17;
+    --paper-img: url("/backgrounds/paper-3.png");
+    --paper-ink: rgba(255, 236, 200, 0.35);
+    --paper-strength: 0.6;   /* yellowed, with faint stains */
+  }
+  [data-paper="graph"] {   /* 20px squares, a slightly stronger line every 5 */
+    --paper-light: #f9f9f6; --paper-dark: #1b1c1e;
+    --paper-img:
+      linear-gradient(rgba(60, 110, 170, 0.065) 1px, transparent 1px) 0 0 / 100px 100px,
+      linear-gradient(90deg, rgba(60, 110, 170, 0.065) 1px, transparent 1px) 0 0 / 100px 100px,
+      linear-gradient(rgba(60, 110, 170, 0.08) 1px, transparent 1px) 0 0 / 20px 20px,
+      linear-gradient(90deg, rgba(60, 110, 170, 0.08) 1px, transparent 1px) 0 0 / 20px 20px;
+    --paper-ink: rgb(120, 160, 210);
+  }
+  [data-paper="dots"] {   /* a dot every 24px, a line of text apart */
+    --paper-light: #fbfaf6; --paper-dark: #1c1c1b;
+    /* faint: darker dots between characters read as · separators */
+    --paper-img: radial-gradient(circle, rgba(55, 53, 47, 0.13) 0.9px, transparent 1.4px) 0 0 / 24px 24px;
+    --paper-ink: rgba(255, 255, 255, 0.8);
+  }
+  html[data-theme="dark"] [data-paper], html[data-theme="dark"][data-paper] { --paper: var(--paper-dark); }
+
+  html[data-paper] {
+    --bg: var(--paper);
+    --bg-sidebar: color-mix(in srgb, var(--paper), #37352f 3.5%);
+    /* code sits on a clean, lighter patch of paper: grain behind small
+       monospace text would cost the syntax colours their contrast */
+    --code-bg: color-mix(in srgb, var(--paper), #fff 50%);
+    --callout-bg: rgba(55, 53, 47, 0.06);   /* see-through: the paper runs on under callouts */
+    --inline-code-fg: #ad2222;              /* #eb5757 falls to about 2.4:1 on the textured papers; this keeps 4.6:1 */
+    /* the texture darkens the page, so the greys go one step darker to keep 4.5:1 */
+    --fg-mid: rgba(55, 53, 47, 0.86);
+    --fg-dim: rgba(55, 53, 47, 0.8);
+  }
+  html[data-theme="dark"][data-paper] {
+    --bg-sidebar: color-mix(in srgb, var(--paper), #fff 2.5%);
+    --code-bg: color-mix(in srgb, var(--paper), #fff 3%);
+    --callout-bg: rgba(255, 255, 255, 0.05);
+    --inline-code-fg: #ff8b8b;
+    --fg-mid: rgba(255, 255, 255, 0.7);
+    --fg-dim: rgba(255, 255, 255, 0.62);
+  }
+  /* the texture is a layer under each surface's content */
+  html[data-paper] .main, .paper-swatch { position: relative; }
+  html[data-paper] .main, html[data-paper] .sidebar, .paper-swatch { isolation: isolate; }
+  html[data-paper] .main::before, html[data-paper] .sidebar::before, .paper-swatch:not([data-paper="plain"])::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--paper-img);
+    opacity: var(--paper-strength);
+  }
+  /* tables sit on the same clean patch as code, so the paper's lines don't double their borders */
+  html[data-paper] .page-body table { background: var(--code-bg); }
+  html[data-theme="dark"][data-paper] .main::before,
+  html[data-theme="dark"][data-paper] .sidebar::before,
+  html[data-theme="dark"] .paper-swatch::before {
+    background: var(--paper-ink);
+    -webkit-mask: var(--paper-img);
+    mask: var(--paper-img);
+  }
+
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
   body {
@@ -129,6 +211,7 @@
 
   /* ---------------- Sidebar ---------------- */
   .sidebar {
+    position: relative;   /* holds the paper texture; narrow windows make it fixed */
     width: 250px;
     min-width: 250px;
     background: var(--bg-sidebar);
@@ -490,6 +573,26 @@
   .menu-item.danger { color: var(--red-text); }
   .menu-item.danger:hover { background: var(--red-soft); }
   .menu-item .ic { width: 20px; display: inline-flex; justify-content: center; flex-shrink: 0; }
+  .menu-item:focus { outline: none; }
+  .menu-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  /* Background menu: a swatch of each paper, a check on the current one */
+  .sb-foot-btn[aria-expanded="true"] { background: var(--hover); color: var(--fg-mid); }
+  .paper-swatch {
+    width: 32px;
+    height: 22px;
+    flex-shrink: 0;
+    border-radius: 4px;
+    border: 1px solid var(--border-strong);
+    background: var(--paper);
+    overflow: hidden;
+  }
+  /* the swatch shows the paper at half size, a patch big enough to tell them apart */
+  .paper-swatch:not([data-paper="plain"])::before { inset: 0 auto auto 0; width: 200%; height: 200%; transform: scale(0.5); transform-origin: 0 0; }
+  /* at half size the page's faint dots vanish, so the swatch draws darker ones */
+  .paper-swatch[data-paper="dots"] { --paper-img: radial-gradient(circle, rgba(55, 53, 47, 0.45) 1.1px, transparent 1.6px) 0 0 / 24px 24px; }
+  .menu-item .check { margin-left: auto; visibility: hidden; }
+  .menu-item[aria-checked="true"] .check { visibility: visible; }
 
   /* ---------------- Page (document) area ---------------- */
   .page-scroll {
@@ -835,6 +938,19 @@
   }
   .trash-item[data-expanded="true"] .trash-preview { display: block; }
 </style>
+<script>
+  // Restore the saved theme and paper before the first paint, so neither flashes
+  // in after the CDN scripts load. The paper is checked against PAPERS below.
+  const THEME_KEY = 'sisyphus-panel-theme';
+  const PAPER_KEY = 'sisyphus-panel-paper';
+  (function () {
+    let theme, paper;
+    try { theme = localStorage.getItem(THEME_KEY); paper = localStorage.getItem(PAPER_KEY); } catch (e) { /* ignore */ }
+    // Notion defaults to light; keep dark if the user chose it before.
+    document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+    if (paper && paper !== 'plain') document.documentElement.dataset.paper = paper;
+  })();
+</script>
 </head>
 <body>
 <div class="app" id="app" data-sidebar="open">
@@ -856,6 +972,7 @@
     <div class="sb-foot">
       <button class="sb-foot-btn" id="btn-trash" type="button"><span class="ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></span>Trash</button>
       <button class="sb-foot-btn" id="btn-theme" type="button"><span class="ic" id="theme-ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span><span id="theme-label">Dark mode</span></button>
+      <button class="sb-foot-btn" id="btn-paper" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="paper-menu"><span class="ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg></span>Background</button>
       <hr class="sb-foot-sep">
       <button class="sb-foot-btn danger" id="btn-clear" type="button"><span class="ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 22-1-4"/><path d="M19 14a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1"/><path d="M19 14H5l-1.973 6.767A1 1 0 0 0 4 22h16a1 1 0 0 0 .973-1.233z"/><path d="m8 22 1-4"/></svg></span>Clear all pages</button>
     </div>
@@ -895,6 +1012,8 @@
   <button class="menu-item danger" id="menu-delete" type="button"><span class="ic"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></span>Move to Trash</button>
 </div>
 
+<div class="menu" id="paper-menu" role="menu" aria-label="Background" data-open="false"></div>
+
 <div class="modal-backdrop" id="modal-backdrop" data-open="false">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-head">
@@ -920,8 +1039,7 @@
       'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/';
   }
 
-  // ---- Theme ----
-  const THEME_KEY = 'sisyphus-panel-theme';
+  // ---- Theme (restored in <head>) ----
   function currentTheme() {
     return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   }
@@ -932,13 +1050,24 @@
       securityLevel: 'loose',
     });
   }
-  (function () {
-    let stored;
-    try { stored = localStorage.getItem(THEME_KEY); } catch (e) { /* ignore */ }
-    // Notion defaults to light; keep dark if the user chose it before.
-    document.documentElement.dataset.theme = stored === 'dark' ? 'dark' : 'light';
-  })();
   initMermaidForTheme(currentTheme());
+
+  // ---- Paper background (restored in <head>; looks in CSS under "Paper backgrounds") ----
+  const PAPERS = [
+    { id: 'plain', label: 'Plain' },
+    { id: 'rice', label: 'Rice paper' },
+    { id: 'old', label: 'Old paper' },
+    { id: 'graph', label: 'Graph paper' },
+    { id: 'dots', label: 'Dot grid' },
+  ];
+  function currentPaper() {
+    return document.documentElement.dataset.paper || 'plain';
+  }
+  function applyPaper(id) {
+    if (id === 'plain') delete document.documentElement.dataset.paper;
+    else document.documentElement.dataset.paper = id;
+  }
+  if (!PAPERS.some(p => p.id === currentPaper())) applyPaper('plain');   // a value this page doesn't know
 
   function escapeHtml(s) {
     if (s == null) return '';
@@ -1874,11 +2003,69 @@
   });
   syncThemeButton();
 
+  // ---- Background menu: opens above the sidebar foot, so Trash and Dark mode
+  // stay in reach, and stays open while you try papers. Dark mode leaves it
+  // open, to compare a paper in both themes; a click elsewhere, Tab or Escape
+  // closes it ----
+  const btnPaper = document.getElementById('btn-paper');
+  const paperMenu = document.getElementById('paper-menu');
+  const ICON_CHECK = '<svg class="ico check" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+  paperMenu.innerHTML = PAPERS.map(p => `<button class="menu-item" type="button" role="menuitemradio" tabindex="-1" data-id="${p.id}">`
+    + `<span class="paper-swatch" data-paper="${p.id}"></span>${p.label}${ICON_CHECK}</button>`).join('');
+  const paperItems = [...paperMenu.children];
+  function syncPaperMenu() {
+    for (const item of paperItems) item.setAttribute('aria-checked', String(item.dataset.id === currentPaper()));
+  }
+  btnPaper.addEventListener('click', ev => {
+    ev.stopPropagation();
+    const wasOpen = paperMenu.dataset.open === 'true';
+    closeMenu();
+    if (wasOpen) return;
+    const r = btnPaper.getBoundingClientRect();
+    paperMenu.style.left = `${r.left}px`;
+    paperMenu.style.bottom = `${window.innerHeight - btnPaper.closest('.sb-foot').getBoundingClientRect().top + 4}px`;
+    syncPaperMenu();
+    paperMenu.dataset.open = 'true';
+    btnPaper.setAttribute('aria-expanded', 'true');
+    // opened from the keyboard (Enter / Space): focus the current paper
+    if (ev.detail === 0) paperItems.find(i => i.dataset.id === currentPaper()).focus();
+  });
+  paperMenu.addEventListener('click', ev => {
+    const item = ev.target.closest('.menu-item');
+    if (!item) return;
+    applyPaper(item.dataset.id);
+    try { localStorage.setItem(PAPER_KEY, item.dataset.id); } catch (e) { /* ignore */ }
+    syncPaperMenu();
+  });
+  paperMenu.addEventListener('keydown', ev => {
+    // back to Background first, so Tab / Shift+Tab move on from there
+    if (ev.key === 'Tab') { closePaperMenu(); return; }
+    const n = paperItems.length;
+    const i = paperItems.indexOf(document.activeElement);
+    const to = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: n - 1 }[ev.key];
+    if (to === undefined) return;
+    ev.preventDefault();
+    paperItems[(to + n) % n].focus();
+  });
+  function closePaperMenu() {
+    if (paperMenu.contains(document.activeElement)) btnPaper.focus();
+    paperMenu.dataset.open = 'false';
+    btnPaper.setAttribute('aria-expanded', 'false');
+  }
+  document.addEventListener('focusin', ev => {
+    if (paperMenu.dataset.open === 'true' && !ev.target.closest('#paper-menu, #btn-paper, #btn-theme')) closePaperMenu();
+  });
+
   // ---- ••• menu ----
-  function closeMenu() { menuEl.dataset.open = 'false'; }
+  function closeMenu() {
+    menuEl.dataset.open = 'false';
+    closePaperMenu();
+  }
   btnMenu.addEventListener('click', ev => {
     ev.stopPropagation();
-    if (menuEl.dataset.open === 'true') { closeMenu(); return; }
+    const wasOpen = menuEl.dataset.open === 'true';
+    closeMenu();
+    if (wasOpen) return;
     const r = btnMenu.getBoundingClientRect();
     menuEl.style.top = `${r.bottom + 4}px`;
     menuEl.style.right = `${Math.max(8, window.innerWidth - r.right)}px`;
@@ -1886,7 +2073,7 @@
     menuEl.dataset.open = 'true';
   });
   document.addEventListener('click', ev => {
-    if (menuEl.dataset.open === 'true' && !menuEl.contains(ev.target)) closeMenu();
+    if (!ev.target.closest('.menu, #btn-theme')) closeMenu();
   });
 
   document.getElementById('menu-delete').addEventListener('click', async () => {
@@ -2003,10 +2190,11 @@
   });
   document.addEventListener('keydown', ev => {
     if (ev.key === 'Escape') {
+      // one layer per press: an open menu goes before the sidebar it came from
       if (drag && drag.phase === 'dragging') endDrag(false);
+      else if (menuEl.dataset.open === 'true' || paperMenu.dataset.open === 'true') closeMenu();
       else if (modalBackdrop.dataset.open === 'true') closeTrash();
       else if (narrowMq.matches && appEl.dataset.sidebar === 'open') setSidebar(false);
-      closeMenu();
     }
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
     if (ev.altKey && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey && !typing
