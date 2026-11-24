@@ -19,6 +19,8 @@ Use it when terminal-only output is awkward for the content you're producing (fo
 - **Soft delete + history** — deleted messages go to `messages/.trash/`; the **History** button in the toolbar lists them newest-first and one-click restores them back into the panel. Auto-purged after 10 days.
 - **Reorder pages** — drag pages up and down in the sidebar, or move one with Alt+↑ / Alt+↓ (the focused row, else the open page). Tab or ↑ ↓ moves between pages, Enter opens one and Delete moves it to the Trash. The order is saved in `messages/.order.json`, so it survives restarts and shows up in every open tab. New and restored pages land at the top; **Sort by newest** (next to the Pages label) drops the manual order.
 - **Collapsible cards** — click the triangle to fold long messages; sticky header keeps title + delete button reachable while scrolling
+- **Long pages stay responsive** — a page goes in a slice at a time, so a document of several hundred KB shows its first screen at once and can be scrolled while the rest follows
+- **Reading progress** — a ring and a percentage in the top bar show how far through the open page you are (100% once the end of the text is in view)
 - **Zero install** — Python 3.8+ stdlib only, no `pip install` needed; one HTML file, four CDN libs
 
 ## Quick start

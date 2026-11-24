@@ -436,6 +436,29 @@
   .status-dot.connected { background: var(--green); }
   .status-dot.error { background: var(--red); }
 
+  /* reading progress of the open page: a ring that fills up, then the
+     percentage, which also keeps the ring apart from the connection status */
+  .read-progress {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin: 0 5px 0 8px;   /* clear of the page title; a two-digit percentage to the status dot = dot to ••• */
+    font-size: 12px;
+    color: var(--fg-dim);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .read-progress[hidden] { display: none; }
+  .read-ring { width: 14px; height: 14px; flex-shrink: 0; fill: none; stroke-width: 2.5; transform: rotate(-90deg); }
+  .read-ring .track { stroke: var(--border-strong); }
+  .read-ring .arc { stroke: var(--fg-dim); }
+  /* The percentage keeps the width of two digits, so the ring stays put while
+     the number changes; only "100%" needs more. */
+  .read-pct { display: inline-grid; }
+  .read-pct::before { content: "00%"; height: 0; visibility: hidden; }
+  /* "Reconnecting…" keeps its distance, so it isn't read as one phrase with the percentage */
+  .read-progress + .status .status-text:not(:empty) { margin-left: 12px; }
+
   /* dropdown menu (•••) */
   .menu {
     position: fixed;
@@ -615,6 +638,7 @@
     font-size: 0.85em;
     font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
   }
+  .page-body td code, .page-body th code { overflow-wrap: anywhere; }
 
   /* ---------------- Notion code block ---------------- */
   .code-block {
@@ -849,6 +873,7 @@
         <span class="crumb-page" id="crumb-page"></span>
       </div>
       <div class="topbar-right">
+        <span class="read-progress" id="read-progress" title="Reading progress" hidden><svg class="read-ring" viewBox="0 0 16 16" aria-hidden="true"><circle class="track" cx="8" cy="8" r="6"/><circle class="arc" id="read-arc" cx="8" cy="8" r="6" pathLength="100"/></svg><span class="read-pct" id="read-pct"></span></span>
         <span class="status" role="status" aria-live="polite"><span class="status-text" id="status-text"></span><span class="status-dot" id="status-dot" title="connecting..."></span></span>
         <button class="icon-btn" id="btn-menu" type="button" title="More actions" aria-label="More actions">•••</button>
       </div>
@@ -1224,6 +1249,9 @@
   const modalBackdrop = document.getElementById('modal-backdrop');
   const modalBody = document.getElementById('modal-body');
   const sortNewestBtn = document.getElementById('btn-sort-newest');
+  const readProgressEl = document.getElementById('read-progress');
+  const readArcEl = document.getElementById('read-arc');
+  const readPctEl = document.getElementById('read-pct');
 
   function setStatus(state, text) {
     statusDotEl.classList.remove('connected', 'error');
@@ -1403,7 +1431,7 @@
     return -inkCtx.measureText(text).actualBoundingBoxLeft;
   }
 
-  function renderPage(msg) {
+  function renderPage(msg, inPlace = false) {
     const meta = pageMeta(msg);
 
     crumbSepEl.style.display = '';
@@ -1430,16 +1458,50 @@
 
     const body = document.createElement('div');
     body.className = 'page-body';
-    body.innerHTML = renderMarkdown(bodySource(msg, meta));
+    const tpl = document.createElement('template');
+    tpl.innerHTML = renderMarkdown(bodySource(msg, meta));
     pageEl.appendChild(body);
 
-    runEnhancements(body, msg);
+    fillBody(body, [...tpl.content.childNodes], !inPlace);
   }
 
-  function runEnhancements(root, msg) {
-    root.querySelectorAll('.mermaid').forEach((el, idx) => {
+  // A page goes in a slice of top-level blocks at a time, so a long one shows
+  // its first screen at once and stays responsive while the rest follows,
+  // instead of freezing until the whole document is laid out. A re-render in
+  // place (sliced = false) goes in whole: the reader may be far down the page,
+  // and a half-filled page would lose that scroll position.
+  const SLICE_MS = 10;      // budget per slice, layout included
+  const SLICE_NODES = 24;   // nodes added between two looks at the clock
+  function fillBody(body, nodes, sliced) {
+    let next = 0;
+    const slice = () => {
+      if (!body.isConnected) return;   // another page was opened meanwhile
+      const sliceEnd = performance.now() + SLICE_MS;
+      while (next < nodes.length) {
+        const frag = document.createDocumentFragment();
+        frag.append(...nodes.slice(next, next + SLICE_NODES));
+        next += SLICE_NODES;
+        runEnhancements(frag);
+        body.append(frag);
+        // Nobody watches a hidden tab load (and its timers are throttled), so it
+        // takes the rest in one go. Reading offsetHeight lays the new blocks out
+        // now: their cost counts against the slice, and no slice stops before
+        // the screen is covered.
+        if (sliced && next < nodes.length && !document.hidden
+            && body.offsetHeight > pageScrollEl.clientHeight && performance.now() > sliceEnd) {
+          setTimeout(slice);
+          return;
+        }
+      }
+    };
+    slice();
+  }
+
+  let diagramSeq = 0;   // every mermaid render needs an id of its own
+  function runEnhancements(root) {
+    root.querySelectorAll('.mermaid').forEach(el => {
       const source = decodeURIComponent(el.dataset.source || '');
-      const id = `mmd-${msg.id}-${Date.now()}-${idx}`.replace(/[^\w-]/g, '_');
+      const id = `mmd-${++diagramSeq}`;
       mermaid.render(id, source).then(({ svg, bindFunctions }) => {
         el.innerHTML = svg;
         if (bindFunctions) bindFunctions(el);
@@ -1483,8 +1545,29 @@
 
   function rerenderAllMermaid() {
     const msg = store.get(activeId);
-    if (msg) renderPage(msg);
+    if (msg) renderPage(msg, true);
   }
+
+  // ---- Reading progress ----
+  // How far the reader is through the open page: 0% at the top, 100% once the
+  // end of the text is in view (the blank space under it doesn't count).
+  // Hidden while the page fits on one screen.
+  function syncReadProgress() {
+    const body = pageEl.querySelector(':scope > .page-body');
+    // the scrollTop at which the end of the text reaches the bottom of the view
+    const range = body ? body.getBoundingClientRect().bottom - pageScrollEl.getBoundingClientRect().bottom + pageScrollEl.scrollTop : 0;
+    readProgressEl.hidden = range < 1;
+    if (range < 1) return;
+    const pct = Math.min(100, Math.floor(pageScrollEl.scrollTop / range * 100));
+    readPctEl.textContent = `${pct}%`;
+    // a dash as long as the ring leaves a hairline seam where its two ends meet
+    readArcEl.style.strokeDasharray = pct < 100 ? `${pct} 100` : 'none';
+  }
+  pageScrollEl.addEventListener('scroll', syncReadProgress, { passive: true });
+  // the page grows while it loads and when a diagram renders; the window resizes the view
+  const readProgressRO = new ResizeObserver(syncReadProgress);
+  readProgressRO.observe(pageEl);
+  readProgressRO.observe(pageScrollEl);
 
   // ---- Store mutations ----
   function upsertMessage(msg, { live }) {
@@ -1501,7 +1584,7 @@
       // real-time feed feel of the old layout.
       openPage(msg.id);
     } else {
-      if (msg.id === activeId) renderPage(store.get(msg.id));
+      if (msg.id === activeId) renderPage(store.get(msg.id), true);
       renderSidebar();
     }
   }
@@ -1528,7 +1611,7 @@
       // here, or SSE) arrived while it was in flight.
       if (order && rev === orderRev) { pageOrder = order; serverOrder = order; }
       list.sort((a, b) => a.mtime - b.mtime);
-      list.forEach(m => upsertMessage(m, { live: false }));
+      for (const m of list) upsertMessage(m, { live: false });
       if (!activeId && list.length) openPage(list[list.length - 1].id);
       if (!list.length && !store.size) { renderEmptyPage(); renderSidebar(); }
       initialSyncDone = true;
@@ -1853,7 +1936,7 @@
       return;
     }
     modalBody.innerHTML = '';
-    list.forEach(msg => modalBody.appendChild(buildTrashItem(msg)));
+    for (const msg of list) modalBody.appendChild(buildTrashItem(msg));
   }
 
   function buildTrashItem(msg) {
